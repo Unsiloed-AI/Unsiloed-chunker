@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include requirements.txt
+include *.py
+recursive-include Unsiloed *.py
+recursive-include Unsiloed *.json
+recursive-include Unsiloed *.txt 

@@ -1,0 +1,13 @@
+uvicorn
+fastapi
+python-multipart
+python-dotenv
+pdf2image
+Pillow
+PyPDF2
+python-docx
+python-pptx
+openai
+numpy
+opencv-python-headless
+requests
