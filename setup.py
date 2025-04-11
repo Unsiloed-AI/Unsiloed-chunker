@@ -40,4 +40,4 @@ setup(
             "Unsiloed=Unsiloed.cli:main",
         ],
     },
-) 
+)
