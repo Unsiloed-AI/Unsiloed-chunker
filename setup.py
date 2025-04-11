@@ -34,6 +34,8 @@ setup(
         "numpy",
         "opencv-python-headless",
         "requests",
+        "llama-cpp-python",
+        "pydantic",
     ],
     entry_points={
         "console_scripts": [

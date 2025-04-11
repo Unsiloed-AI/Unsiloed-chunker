@@ -12,6 +12,13 @@ A super simple way to extract text from documents for  for intelligent document 
   - **Semantic**: Uses Multi-Modal Model to identify meaningful semantic chunks
   - **Paragraph**: Splits text by paragraphs
   - **Heading**: Splits text by identified headings
+  - **zChunk**: Uses local Llama models to identify semantically meaningful boundaries through logprob analysis
+
+### 🧠 zChunk
+- **LLM-powered chunking**: Uses Llama models to identify meaningful text boundaries without relying on external APIs
+- **Hierarchical chunking**: Creates both big chunks (sections) and small chunks (sentences) based on logprob thresholds
+- **Custom configuration**: Fine-tune parameters like section size, overlap, and logprob thresholds
+- **Local inference**: Runs locally using llama.cpp, supporting various GGUF models
 
 ## 🔧 Technical Details
 
@@ -20,6 +27,12 @@ A super simple way to extract text from documents for  for intelligent document 
 - Handles authentication via API key from environment variables
 - Implements automatic retries and timeout handling
 - Provides structured JSON output for semantic chunks
+
+### 🤖 Local LLM Integration
+- Uses Llama models via llama.cpp for local chunking with zChunk
+- Supports custom model paths or downloads from Hugging Face
+- Configurable context window and GPU acceleration
+- Efficient token-by-token analysis for optimal chunking boundaries
 
 ### 🔄 Parallel Processing
 - Multi-threaded processing for improved performance
@@ -55,10 +68,10 @@ A super simple way to extract text from documents for  for intelligent document 
 ### Document Chunking Endpoint
 - `document_file`: The document file to process (PDF, DOCX, PPTX)
 - `strategy`: Chunking strategy to use (default: "semantic")
-  - Options: "fixed", "page", "semantic", "paragraph", "heading"
+  - Options: "fixed", "page", "semantic", "paragraph", "heading", "zchunk"
 - `chunk_size`: Size of chunks for fixed strategy in characters (default: 1000)
 - `overlap`: Overlap size for fixed strategy in characters (default: 100)
-
+- `model_path`: Path to local model for zchunk strategy (optional)
 
 ## 📦 Installation
 
@@ -66,7 +79,6 @@ A super simple way to extract text from documents for  for intelligent document 
 ```bash
 pip install unsiloed
 ```
-
 
 ### Requirements
 Unsiloed requires Python 3.8 or higher and has the following dependencies:
@@ -76,6 +88,7 @@ Unsiloed requires Python 3.8 or higher and has the following dependencies:
 - python-pptx
 - fastapi
 - python-multipart
+- llama-cpp-python (for zChunk functionality)
 
 ## 🔑 Environment Setup
 
@@ -164,6 +177,37 @@ heading_result = Unsiloed.process_sync({
     },
     "strategy": "heading"
 })
+
+# Example 6: zChunk - LLM-powered local chunking
+from Unsiloed.utils.zchunk import LlamaChunker, ChunkerConfig
+
+# Configure the chunker
+config = ChunkerConfig(
+    # Optional: path to local model
+    # model_path="/path/to/model.gguf",
+    # Or use HuggingFace models
+    repo_id="bartowski/Meta-Llama-3.1-70B-Instruct-GGUF",
+    model_file="Meta-Llama-3.1-70B-Instruct-IQ1_M.gguf",
+    section_size=5000,  # Size of text sections to process
+    overlap=400,        # Overlap between sections
+    n_gpu_layers=-1     # Use all GPU layers (-1) or specify a number
+)
+
+# Initialize chunker
+chunker = LlamaChunker(config)
+
+# Process text
+with open("document.txt", "r") as f:
+    text = f.read()
+    
+result = chunker.chunk_text(text)
+
+# Access chunks
+print(f"Number of big chunks: {len(result.big_chunks)}")
+print(f"Number of small chunks: {len(result.small_chunks)}")
+
+# Save chunks to a file
+result.save_to_file("chunks.json")
 ```
 
 ## 🛠️ Development Setup
@@ -213,8 +257,6 @@ uvicorn Unsiloed.app:app --reload
 6. Access the API documentation:
 Open your browser and go to `http://localhost:8000/docs`
 
-
-
 ## 👨‍💻 Contributing
 
 We welcome contributions to Unsiloed! Here's how you can help:
@@ -232,7 +274,6 @@ cd Unsiloed
 pip install -r requirements.txt
 ```
 
-
 ### Making Changes
 
 1. Create a new branch for your feature:
@@ -241,7 +282,6 @@ git checkout -b feature/your-feature-name
 ```
 
 2. Make your changes and write tests if applicable
-
 
 4. Commit your changes:
 ```bash
@@ -262,7 +302,6 @@ git push origin feature/your-feature-name
 - Document functions and classes with docstrings
 - Write tests for new features
 
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -274,7 +313,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **GitHub Discussions**: For questions, ideas, and discussions
 - **Issues**: For bug reports and feature requests
 - **Pull Requests**: For contributing to the codebase
-
 
 ### Staying Updated
 
