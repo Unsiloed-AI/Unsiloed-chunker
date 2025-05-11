@@ -34,7 +34,7 @@ setup(
         "numpy",
         "opencv-python-headless",
         "requests",
-        "textract",
+        "beautifulsoup4"
         "openpyxl",
         "xlrd",
         "odfpy",
