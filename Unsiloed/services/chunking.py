@@ -9,6 +9,15 @@ from Unsiloed.utils.openai import (
     extract_text_from_pdf,
     extract_text_from_docx,
     extract_text_from_pptx,
+    extract_text_from_doc,
+    extract_text_from_xlsx,
+    extract_text_from_xls,
+    extract_text_from_odt,
+    extract_text_from_ods,
+    extract_text_from_odp,
+    extract_text_from_txt,
+    extract_text_from_rtf,
+    extract_text_from_epub,
 )
 
 import logging
@@ -24,11 +33,11 @@ def process_document_chunking(
     overlap=100,
 ):
     """
-    Process a document file (PDF, DOCX, PPTX) with the specified chunking strategy.
+    Process a document file with the specified chunking strategy.
 
     Args:
         file_path: Path to the document file
-        file_type: Type of document (pdf, docx, pptx)
+        file_type: Type of document (pdf, docx, pptx, doc, xlsx, xls, odt, ods, odp, txt, rtf, epub)
         strategy: Chunking strategy to use
         chunk_size: Size of chunks for fixed strategy
         overlap: Overlap size for fixed strategy
@@ -51,6 +60,24 @@ def process_document_chunking(
             text = extract_text_from_docx(file_path)
         elif file_type == "pptx":
             text = extract_text_from_pptx(file_path)
+        elif file_type == "doc":
+            text = extract_text_from_doc(file_path)
+        elif file_type == "xlsx":
+            text = extract_text_from_xlsx(file_path)
+        elif file_type == "xls":
+            text = extract_text_from_xls(file_path)
+        elif file_type == "odt":
+            text = extract_text_from_odt(file_path)
+        elif file_type == "ods":
+            text = extract_text_from_ods(file_path)
+        elif file_type == "odp":
+            text = extract_text_from_odp(file_path)
+        elif file_type == "txt":
+            text = extract_text_from_txt(file_path)
+        elif file_type == "rtf":
+            text = extract_text_from_rtf(file_path)
+        elif file_type == "epub":
+            text = extract_text_from_epub(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
 
