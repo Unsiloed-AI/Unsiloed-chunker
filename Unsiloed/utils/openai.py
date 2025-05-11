@@ -485,3 +485,186 @@ def extract_text_from_pptx(pptx_path: str) -> str:
     except Exception as e:
         logger.error(f"Error extracting text from PPTX: {str(e)}")
         raise
+
+
+def extract_text_from_doc(doc_path: str) -> str:
+    """
+    Extract text from a DOC file using python-docx.
+
+    Args:
+        doc_path: Path to the DOC file
+
+    Returns:
+        Extracted text from the DOC
+    """
+    try:
+        import docx
+        doc = docx.Document(doc_path)
+        full_text = []
+        
+        # Extract text from paragraphs
+        for para in doc.paragraphs:
+            full_text.append(para.text)
+            
+        # Extract text from tables
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    full_text.append(cell.text)
+                    
+        return "\n\n".join(full_text)
+    except Exception as e:
+        logger.error(f"Error extracting text from DOC: {str(e)}")
+        raise
+
+
+def extract_text_from_excel(excel_path: str) -> str:
+    """
+    Extract text from Excel files (XLSX, XLS).
+
+    Args:
+        excel_path: Path to the Excel file
+
+    Returns:
+        Extracted text from the Excel file
+    """
+    try:
+        if excel_path.lower().endswith('.xlsx'):
+            import openpyxl
+            workbook = openpyxl.load_workbook(excel_path, data_only=True)
+            full_text = []
+            
+            for sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+                sheet_text = [f"Sheet: {sheet_name}"]
+                
+                for row in sheet.iter_rows(values_only=True):
+                    row_text = [str(cell) for cell in row if cell is not None]
+                    if row_text:
+                        sheet_text.append(" | ".join(row_text))
+                
+                full_text.append("\n".join(sheet_text))
+        elif excel_path.lower().endswith('.xls'):
+            import xlrd
+            workbook = xlrd.open_workbook(excel_path)
+            full_text = []
+            
+            for sheet in workbook.sheets():
+                sheet_text = [f"Sheet: {sheet.name}"]
+                
+                for row_idx in range(sheet.nrows):
+                    row = sheet.row_values(row_idx)
+                    row_text = [str(cell) for cell in row if cell]
+                    if row_text:
+                        sheet_text.append(" | ".join(row_text))
+                
+                full_text.append("\n".join(sheet_text))
+        else:
+            raise ValueError(f"Unsupported Excel format: {excel_path}")
+        
+        return "\n\n".join(full_text)
+    except Exception as e:
+        logger.error(f"Error extracting text from Excel file: {str(e)}")
+        raise
+
+
+def extract_text_from_opendocument(od_path: str) -> str:
+    """
+    Extract text from OpenDocument files (ODT, ODS, ODP).
+
+    Args:
+        od_path: Path to the OpenDocument file
+
+    Returns:
+        Extracted text from the OpenDocument file
+    """
+    try:
+        from odfpy import text, spreadsheet, presentation
+        full_text = []
+        
+        if od_path.lower().endswith('.odt'):
+            doc = text.TextDocument(od_path)
+            for para in doc.getElementsByType(text.P):
+                full_text.append(para.getText())
+        elif od_path.lower().endswith('.ods'):
+            doc = spreadsheet.Spreadsheet(od_path)
+            for sheet in doc.getSheets():
+                sheet_text = [f"Sheet: {sheet.getAttribute('name')}"]
+                for row in sheet.getRows():
+                    row_text = [str(cell.getText()) for cell in row if cell.getText()]
+                    if row_text:
+                        sheet_text.append(" | ".join(row_text))
+                full_text.append("\n".join(sheet_text))
+        elif od_path.lower().endswith('.odp'):
+            doc = presentation.Presentation(od_path)
+            for slide in doc.getElementsByType(presentation.Slide):
+                slide_text = [f"Slide {slide.getAttribute('name')}"]
+                for shape in slide.getElementsByType(presentation.Shape):
+                    if shape.getAttribute('text'):
+                        slide_text.append(shape.getAttribute('text'))
+                full_text.append("\n".join(slide_text))
+        else:
+            raise ValueError(f"Unsupported OpenDocument format: {od_path}")
+        
+        return "\n\n".join(full_text)
+    except ImportError as e:
+        logger.error(f"Required module not found: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Error extracting text from OpenDocument file: {str(e)}")
+        raise
+
+
+def extract_text_from_text_file(text_path: str) -> str:
+    """
+    Extract text from text files (TXT, RTF).
+
+    Args:
+        text_path: Path to the text file
+
+    Returns:
+        Extracted text from the text file
+    """
+    try:
+        if text_path.lower().endswith('.rtf'):
+            from striprtf.striprtf import rtf_to_text
+            with open(text_path, 'r', encoding='utf-8', errors='ignore') as file:
+                rtf_content = file.read()
+                return rtf_to_text(rtf_content)
+        else:  # .txt
+            with open(text_path, 'r', encoding='utf-8') as file:
+                return file.read()
+    except Exception as e:
+        logger.error(f"Error extracting text from text file: {str(e)}")
+        raise
+
+
+def extract_text_from_epub(epub_path: str) -> str:
+    """
+    Extract text from EPUB files.
+
+    Args:
+        epub_path: Path to the EPUB file
+
+    Returns:
+        Extracted text from the EPUB
+    """
+    try:
+        import ebooklib
+        from ebooklib import epub
+        from bs4 import BeautifulSoup
+        
+        book = epub.read_epub(epub_path)
+        full_text = []
+        
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                soup = BeautifulSoup(item.get_content(), 'html.parser')
+                text = soup.get_text()
+                if text.strip():
+                    full_text.append(text)
+        
+        return "\n\n".join(full_text)
+    except Exception as e:
+        logger.error(f"Error extracting text from EPUB: {str(e)}")
+        raise

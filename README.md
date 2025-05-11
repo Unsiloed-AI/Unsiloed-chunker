@@ -5,7 +5,13 @@ A super simple way to extract text from documents for  for intelligent document 
 ## 🚀 Features
 
 ### 📊 Document Chunking
-- **Supported File Types**: PDF, DOCX, PPTX
+- **Supported File Types**: 
+  - PDF, DOCX, PPTX
+  - DOC (Microsoft Word)
+  - XLSX, XLS (Microsoft Excel)
+  - ODT, ODS, ODP (OpenDocument formats)
+  - TXT, RTF (Text formats)
+  - EPUB (E-book format)
 - **Chunking Strategies**:
   - **Fixed Size**: Splits text into chunks of specified size with optional overlap
   - **Page-based**: Splits PDF by pages (PDF only, falls back to paragraph for other file types)

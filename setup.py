@@ -34,6 +34,11 @@ setup(
         "numpy",
         "opencv-python-headless",
         "requests",
+        "textract",
+        "openpyxl",
+        "xlrd",
+        "odfpy",
+        "ebooklib",
     ],
     entry_points={
         "console_scripts": [
