@@ -22,6 +22,8 @@ def process_document_chunking(
     strategy,
     chunk_size=1000,
     overlap=100,
+    model_provider="openai",
+    model_config=None,
 ):
     """
     Process a document file (PDF, DOCX, PPTX) with the specified chunking strategy.
@@ -32,12 +34,14 @@ def process_document_chunking(
         strategy: Chunking strategy to use
         chunk_size: Size of chunks for fixed strategy
         overlap: Overlap size for fixed strategy
+        model_provider: Type of model provider to use
+        model_config: Additional configuration for the model provider
 
     Returns:
         Dictionary with chunking results
     """
     logger.info(
-        f"Processing {file_type.upper()} document with {strategy} chunking strategy"
+        f"Processing {file_type.upper()} document with {strategy} chunking strategy using {model_provider} provider"
     )
 
     # Handle page-based chunking for PDFs only
@@ -58,7 +62,7 @@ def process_document_chunking(
         if strategy == "fixed":
             chunks = fixed_size_chunking(text, chunk_size, overlap)
         elif strategy == "semantic":
-            chunks = semantic_chunking(text)
+            chunks = semantic_chunking(text, provider_type=model_provider, **(model_config or {}))
         elif strategy == "paragraph":
             chunks = paragraph_chunking(text)
         elif strategy == "heading":
@@ -70,7 +74,7 @@ def process_document_chunking(
             )
             chunks = paragraph_chunking(text)
         else:
-            raise ValueError(f"Unknown chunking strategy: {strategy}")
+            raise ValueError(f"Unsupported chunking strategy: {strategy}")
 
     # Calculate statistics
     total_chunks = len(chunks)
