@@ -10,6 +10,12 @@ from dotenv import load_dotenv
 import numpy as np
 import cv2
 import re
+from Unsiloed.utils.chunking import (
+    check_memory_usage,
+    log_memory_usage,
+    adjust_batch_size,
+    INITIAL_BATCH_SIZE,
+)
 
 load_dotenv()
 
@@ -269,6 +275,8 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         Extracted text from the PDF
     """
     try:
+        log_memory_usage("pdf_extraction_start")
+        
         with open(pdf_path, "rb") as file:
             reader = PyPDF2.PdfReader(file)
             total_pages = len(reader.pages)
@@ -276,6 +284,11 @@ def extract_text_from_pdf(pdf_path: str) -> str:
             # Function to extract text from a page with improved error handling
             def extract_page_text(page_idx):
                 try:
+                    # Check memory usage before processing each page
+                    if not check_memory_usage():
+                        logger.warning(f"Memory usage high before processing page {page_idx}")
+                        return ""
+                        
                     page = reader.pages[page_idx]
                     # Use a more efficient text extraction method with layout preservation
                     text = page.extract_text(extraction_mode="layout") or ""
@@ -300,12 +313,24 @@ def extract_text_from_pdf(pdf_path: str) -> str:
                 # Process each chunk of pages
                 chunk_results = []
                 for chunk in page_chunks:
+                    # Check memory usage before processing each chunk
+                    if not check_memory_usage():
+                        logger.warning("Memory usage high before processing chunk")
+                        # Reduce chunk size if memory is low
+                        optimal_chunk_size = max(1, optimal_chunk_size // 2)
+                        continue
+                        
                     futures = [executor.submit(extract_page_text, page_idx) for page_idx in chunk]
                     chunk_texts = [f.result() for f in concurrent.futures.as_completed(futures)]
                     chunk_results.extend(chunk_texts)
+                    
+                    # Log memory usage after each chunk
+                    log_memory_usage(f"pdf_chunk_{chunk[0]}-{chunk[-1]}")
 
             # Join results with minimal memory overhead
-            return "\n\n".join(filter(None, chunk_results))
+            result = "\n\n".join(filter(None, chunk_results))
+            log_memory_usage("pdf_extraction_end")
+            return result
 
     except Exception as e:
         logger.error(f"Error extracting text from PDF: {str(e)}")

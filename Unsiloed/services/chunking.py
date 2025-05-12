@@ -4,6 +4,11 @@ from Unsiloed.utils.chunking import (
     paragraph_chunking,
     heading_chunking,
     semantic_chunking,
+    check_memory_usage,
+    log_memory_usage,
+    adjust_batch_size,
+    get_memory_threshold,
+    INITIAL_BATCH_SIZE,
 )
 from Unsiloed.utils.openai import (
     extract_text_from_pdf,
@@ -52,6 +57,7 @@ def process_document_chunking(
     chunk_size: int = 1000,
     overlap: int = 100,
     batch_size: Optional[int] = None,
+    progress_callback: Optional[callable] = None,
 ) -> Dict[str, Any]:
     """
     Process a document file (PDF, DOCX, PPTX) with the specified chunking strategy.
@@ -64,50 +70,73 @@ def process_document_chunking(
         chunk_size: Size of chunks for fixed strategy
         overlap: Overlap size for fixed strategy
         batch_size: Optional batch size for processing large documents
+        progress_callback: Optional callback function to track progress
 
     Returns:
         Dictionary with chunking results
     """
     logger.info(f"Processing {file_type.upper()} document with {strategy} chunking strategy")
+    log_memory_usage("start")
 
     # Generate cache key using file hash for better cache hits
     cache_key = _generate_cache_key(file_path, strategy, chunk_size, overlap)
     cached_result = _document_cache.get(cache_key)
     if cached_result:
         logger.info("Retrieved result from cache")
+        if progress_callback:
+            progress_callback(100)  # 100% complete from cache
         return cached_result
 
     try:
-    # Handle page-based chunking for PDFs only
-    if strategy == "page" and file_type == "pdf":
-        chunks = page_based_chunking(file_path)
-    else:
+        # Handle page-based chunking for PDFs only
+        if strategy == "page" and file_type == "pdf":
+            chunks = page_based_chunking(file_path, progress_callback)
+        else:
             # Extract text based on file type with optimized extraction
+            if progress_callback:
+                progress_callback(10)  # 10% complete - starting extraction
             text = extract_document_text(file_path, file_type)
+            
+            if progress_callback:
+                progress_callback(30)  # 30% complete - extraction done
+
+            # Check memory usage before processing
+            if not check_memory_usage():
+                logger.warning("Memory usage high before processing, adjusting batch size")
+                batch_size = INITIAL_BATCH_SIZE // 2
 
             # Apply batch processing for large documents
-            if batch_size and len(text) > batch_size:
-                chunks = process_in_batches(text, strategy, chunk_size, overlap, batch_size)
-        else:
+            if batch_size is None:
+                batch_size = min(INITIAL_BATCH_SIZE, len(text))
+            
+            if len(text) > batch_size:
+                chunks = process_in_batches(text, strategy, chunk_size, overlap, batch_size, progress_callback)
+            else:
                 # Apply the selected chunking strategy with optimized parameters
                 chunks = apply_chunking_strategy(text, strategy, chunk_size, overlap)
+                if progress_callback:
+                    progress_callback(90)  # 90% complete - chunking done
 
         # Calculate statistics efficiently
-    total_chunks = len(chunks)
+        total_chunks = len(chunks)
         avg_chunk_size = sum(len(chunk["text"]) for chunk in chunks) / total_chunks if total_chunks > 0 else 0
 
-    result = {
-        "file_type": file_type,
-        "strategy": strategy,
-        "total_chunks": total_chunks,
-        "avg_chunk_size": avg_chunk_size,
-        "chunks": chunks,
-    }
+        result = {
+            "file_type": file_type,
+            "strategy": strategy,
+            "total_chunks": total_chunks,
+            "avg_chunk_size": avg_chunk_size,
+            "chunks": chunks,
+        }
 
         # Cache the result
         _document_cache.put(cache_key, result)
 
-    return result
+        if progress_callback:
+            progress_callback(100)  # 100% complete
+
+        log_memory_usage("end")
+        return result
 
     except Exception as e:
         logger.error(f"Error processing document: {str(e)}")
@@ -140,7 +169,8 @@ def process_in_batches(
     strategy: str,
     chunk_size: int,
     overlap: int,
-    batch_size: int
+    batch_size: int,
+    progress_callback: Optional[callable] = None,
 ) -> List[Dict[str, Any]]:
     """
     Process large text in batches for better memory management.
@@ -151,6 +181,7 @@ def process_in_batches(
         chunk_size: Chunk size
         overlap: Overlap size
         batch_size: Size of each batch
+        progress_callback: Optional callback function to track progress
         
     Returns:
         List of chunks
@@ -158,6 +189,8 @@ def process_in_batches(
     chunks = []
     text_length = len(text)
     start = 0
+    total_batches = (text_length + batch_size - 1) // batch_size
+    current_batch = 0
     
     while start < text_length:
         # Calculate batch end with overlap
@@ -174,6 +207,12 @@ def process_in_batches(
         
         chunks.extend(batch_chunks)
         start = end - overlap if end < text_length else text_length
+        
+        # Update progress
+        current_batch += 1
+        if progress_callback:
+            progress = 30 + (current_batch / total_batches * 60)  # 30-90% range
+            progress_callback(int(progress))
     
     return chunks
 

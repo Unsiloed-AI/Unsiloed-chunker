@@ -1,13 +1,89 @@
 import concurrent.futures
-from typing import Literal, List, Dict, Any
+from typing import Literal, List, Dict, Any, Optional
 import logging
 import PyPDF2
 import re
+import psutil
+import os
 from Unsiloed.utils.openai import (
     semantic_chunk_with_structured_output,
 )
 
 logger = logging.getLogger(__name__)
+
+# Memory management configuration
+MEMORY_THRESHOLD_PERCENT = int(os.environ.get('MEMORY_THRESHOLD_PERCENT', 80))  # Default 80% of available memory
+MIN_BATCH_SIZE = 1000  # Minimum batch size in characters
+MAX_BATCH_SIZE = 100000  # Maximum batch size in characters
+INITIAL_BATCH_SIZE = 50000  # Initial batch size in characters
+
+def get_available_memory() -> int:
+    """
+    Get available system memory in bytes.
+    
+    Returns:
+        int: Available memory in bytes
+    """
+    return psutil.virtual_memory().available
+
+def get_memory_threshold() -> int:
+    """
+    Calculate dynamic memory threshold based on available system memory.
+    
+    Returns:
+        int: Memory threshold in bytes
+    """
+    total_memory = psutil.virtual_memory().total
+    return int(total_memory * (MEMORY_THRESHOLD_PERCENT / 100))
+
+def check_memory_usage() -> bool:
+    """
+    Check if current memory usage is within acceptable limits.
+    
+    Returns:
+        bool: True if memory usage is acceptable, False otherwise
+    """
+    process = psutil.Process(os.getpid())
+    memory_info = process.memory_info()
+    threshold = get_memory_threshold()
+    return memory_info.rss < threshold
+
+def log_memory_usage(stage: str) -> None:
+    """
+    Log current memory usage for monitoring.
+    
+    Args:
+        stage: Current processing stage
+    """
+    process = psutil.Process(os.getpid())
+    memory_info = process.memory_info()
+    system_memory = psutil.virtual_memory()
+    
+    logger.debug(
+        f"Memory usage at {stage}: "
+        f"Process: {memory_info.rss / 1024 / 1024:.2f} MB, "
+        f"System: {system_memory.percent}% used, "
+        f"Available: {system_memory.available / 1024 / 1024:.2f} MB"
+    )
+
+def adjust_batch_size(current_batch_size: int, memory_usage_percent: float) -> int:
+    """
+    Dynamically adjust batch size based on memory usage.
+    
+    Args:
+        current_batch_size: Current batch size
+        memory_usage_percent: Current memory usage percentage
+        
+    Returns:
+        int: Adjusted batch size
+    """
+    if memory_usage_percent > 90:
+        return max(MIN_BATCH_SIZE, current_batch_size // 4)
+    elif memory_usage_percent > 80:
+        return max(MIN_BATCH_SIZE, current_batch_size // 2)
+    elif memory_usage_percent < 50:
+        return min(MAX_BATCH_SIZE, current_batch_size * 2)
+    return current_batch_size
 
 ChunkingStrategy = Literal["fixed", "page", "semantic", "paragraph", "heading"]
 
@@ -224,3 +300,75 @@ def semantic_chunking(text: str) -> List[Dict[str, Any]]:
         List of chunks with metadata
     """
     return semantic_chunk_with_structured_output(text)
+
+def process_in_batches(
+    text: str,
+    strategy: str,
+    chunk_size: int,
+    overlap: int,
+    batch_size: Optional[int] = None,
+    progress_callback: Optional[callable] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Process large text in batches for better memory management.
+    
+    Args:
+        text: Text to process
+        strategy: Chunking strategy
+        chunk_size: Chunk size
+        overlap: Overlap size
+        batch_size: Optional initial batch size
+        progress_callback: Optional callback function to track progress
+        
+    Returns:
+        List of chunks
+    """
+    chunks = []
+    text_length = len(text)
+    start = 0
+    
+    # Initialize batch size if not provided
+    if batch_size is None:
+        batch_size = min(INITIAL_BATCH_SIZE, text_length)
+    
+    total_batches = (text_length + batch_size - 1) // batch_size
+    current_batch = 0
+    
+    while start < text_length:
+        # Get current memory usage
+        memory_usage = psutil.virtual_memory().percent
+        
+        # Adjust batch size based on memory usage
+        batch_size = adjust_batch_size(batch_size, memory_usage)
+        
+        # Check if we have enough memory to proceed
+        if not check_memory_usage():
+            logger.warning(f"Memory usage high ({memory_usage}%), reducing batch size to {batch_size}")
+            if batch_size < MIN_BATCH_SIZE:
+                raise MemoryError("Insufficient memory to process document")
+        
+        # Calculate batch end with overlap
+        end = min(start + batch_size + overlap, text_length)
+        batch_text = text[start:end]
+        
+        # Process batch
+        batch_chunks = apply_chunking_strategy(batch_text, strategy, chunk_size, overlap)
+        
+        # Adjust positions for global text
+        for chunk in batch_chunks:
+            chunk["metadata"]["start_char"] += start
+            chunk["metadata"]["end_char"] += start
+        
+        chunks.extend(batch_chunks)
+        start = end - overlap if end < text_length else text_length
+        
+        # Update progress
+        current_batch += 1
+        if progress_callback:
+            progress = 30 + (current_batch / total_batches * 60)  # 30-90% range
+            progress_callback(int(progress))
+        
+        # Log memory usage
+        log_memory_usage(f"batch {current_batch}/{total_batches}")
+    
+    return chunks
