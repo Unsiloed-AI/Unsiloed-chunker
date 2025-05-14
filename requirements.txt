@@ -11,3 +11,7 @@ openai
 numpy
 opencv-python-headless
 requests
+anthropic
+transformers
+torch
+accelerate
