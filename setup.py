@@ -34,10 +34,27 @@ setup(
         "numpy",
         "opencv-python-headless",
         "requests",
+        "docx2txt",
+        "openpyxl",
+        "xlrd",
+        "odfpy",
+        "ebooklib",
+        "striprtf",
+        "beautifulsoup4",
     ],
+    extras_require={
+        "all": [
+            "anthropic",
+            "llama-cpp-python",
+            "huggingface_hub",
+        ],
+        "anthropic": ["anthropic"],
+        "local": ["llama-cpp-python"],
+        "huggingface": ["huggingface_hub"],
+    },
     entry_points={
         "console_scripts": [
             "Unsiloed=Unsiloed.cli:main",
         ],
     },
-) 
+)

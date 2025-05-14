@@ -2,7 +2,7 @@ import concurrent.futures
 from typing import Literal
 import logging
 import PyPDF2
-from Unsiloed.utils.openai import (
+from Unsiloed.utils.model_utils import (
     semantic_chunk_with_structured_output,
 )
 
@@ -195,15 +195,16 @@ def heading_chunking(text):
     return chunks
 
 
-def semantic_chunking(text):
+def semantic_chunking(text, provider_name=None):
     """
-    Use OpenAI to identify semantic chunks in the text.
+    Use the selected model provider to identify semantic chunks in the text.
 
     Args:
         text: The text to chunk
+        provider_name: Name of the model provider to use (default: from config)
 
     Returns:
         List of chunks with metadata
     """
     # Use the optimized semantic chunking with Structured Outputs
-    return semantic_chunk_with_structured_output(text)
+    return semantic_chunk_with_structured_output(text, provider_name)
