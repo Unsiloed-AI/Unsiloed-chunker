@@ -9,6 +9,13 @@ import PyPDF2
 from dotenv import load_dotenv
 import numpy as np
 import cv2
+import re
+from Unsiloed.utils.chunking import (
+    check_memory_usage,
+    log_memory_usage,
+    adjust_batch_size,
+    INITIAL_BATCH_SIZE,
+)
 
 load_dotenv()
 
@@ -125,7 +132,8 @@ def create_extraction_prompt(schema: Dict[str, Any], page_count: int) -> str:
 
 def semantic_chunk_with_structured_output(text: str) -> List[Dict[str, Any]]:
     """
-    Use OpenAI API to create semantic chunks from text using JSON mode.
+    Use OpenAI API to create semantic chunks from text using JSON mode with optimized performance.
+    Falls back to local semantic chunking for better performance.
 
     Args:
         text: The text to chunk
@@ -133,47 +141,50 @@ def semantic_chunk_with_structured_output(text: str) -> List[Dict[str, Any]]:
     Returns:
         List of chunks with metadata
     """
+    # Optimize text length threshold and chunk size
+    MAX_DIRECT_TEXT_LENGTH = 15000  # Reduced from 25000 for better performance
+    CHUNK_SIZE = 15000  # Optimized chunk size
+    OVERLAP = 300  # Reduced overlap for better performance
 
     # If text is too long, split it first using a simpler method
-    # and then process each part in parallel
-    if len(text) > 25000:
-        logger.info(
-            "Text too long for direct semantic chunking, applying parallel processing"
-        )
-        return process_long_text_semantically(text)
+    if len(text) > MAX_DIRECT_TEXT_LENGTH:
+        logger.info("Text too long for direct semantic chunking, applying parallel processing")
+        return process_long_text_semantically(text, CHUNK_SIZE, OVERLAP)
 
     try:
-        # Get the OpenAI client
-        openai_client = get_openai_client()
+        # First try local semantic chunking for better performance
+        local_chunks = local_semantic_chunking(text)
+        if local_chunks:
+            return local_chunks
 
-        # Create a prompt for the OpenAI model with JSON mode
+        # Fall back to OpenAI if local chunking fails
+        openai_client = get_openai_client()
+        if not openai_client:
+            return paragraph_chunking(text)  # Fallback to paragraph chunking if OpenAI is not available
+
+        # Optimize the prompt for faster processing
         response = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are an expert at analyzing and dividing text into meaningful semantic chunks. Your output should be valid JSON.",
+                    "content": "You are an expert at analyzing and dividing text into meaningful semantic chunks. Focus on natural breaks in the content. Your output must be valid JSON.",
                 },
                 {
                     "role": "user",
-                    "content": f"""Please analyze the following text and divide it into logical semantic chunks. 
-                    Each chunk should represent a cohesive unit of information or a distinct section.
-                    
-                    Return your results as a JSON object with this structure:
+                    "content": f"""Analyze this text and divide it into logical semantic chunks. Each chunk should be a cohesive unit.
+                    Return JSON with this structure:
                     {{
                         "chunks": [
                             {{
-                                "text": "the text of the chunk",
-                                "title": "a descriptive title for this chunk",
+                                "text": "chunk text",
+                                "title": "descriptive title",
                                 "position": "beginning/middle/end"
-                            }},
-                            ...
+                            }}
                         ]
                     }}
                     
-                    Text to chunk:
-                    
-                    {text}""",
+                    Text: {text}""",
                 },
             ],
             max_tokens=4000,
@@ -181,25 +192,18 @@ def semantic_chunk_with_structured_output(text: str) -> List[Dict[str, Any]]:
             response_format={"type": "json_object"},
         )
 
-        # Parse the response
         result = json.loads(response.choices[0].message.content)
-
-        # Convert the response to our standard chunk format
         chunks = []
         current_position = 0
 
         for i, chunk_data in enumerate(result.get("chunks", [])):
             chunk_text = chunk_data.get("text", "")
-            # Find the chunk in the original text to get accurate character positions
             start_position = text.find(chunk_text, current_position)
             if start_position == -1:
-                # If exact match not found, use approximate position
                 start_position = current_position
 
             end_position = start_position + len(chunk_text)
-
-            chunks.append(
-                {
+            chunks.append({
                     "text": chunk_text,
                     "metadata": {
                         "title": chunk_data.get("title", f"Chunk {i + 1}"),
@@ -208,64 +212,31 @@ def semantic_chunk_with_structured_output(text: str) -> List[Dict[str, Any]]:
                         "end_char": end_position,
                         "strategy": "semantic",
                     },
-                }
-            )
-
+            })
             current_position = end_position
 
         return chunks
 
     except Exception as e:
-        logger.error(f"Error in semantic chunking with JSON mode: {str(e)}")
-        # Fall back to paragraph chunking if semantic chunking fails
-        logger.info("Falling back to paragraph chunking")
-        # We'll just do basic paragraph chunking here
-        paragraphs = text.split("\n\n")
-        paragraphs = [p.strip() for p in paragraphs if p.strip()]
-
-        chunks = []
-        current_position = 0
-
-        for i, paragraph in enumerate(paragraphs):
-            start_position = text.find(paragraph, current_position)
-            if start_position == -1:
-                start_position = current_position
-
-            end_position = start_position + len(paragraph)
-
-            chunks.append(
-                {
-                    "text": paragraph,
-                    "metadata": {
-                        "title": f"Paragraph {i + 1}",
-                        "position": "unknown",
-                        "start_char": start_position,
-                        "end_char": end_position,
-                        "strategy": "paragraph",  # Fall back strategy
-                    },
-                }
-            )
-
-            current_position = end_position
-
-        return chunks
+        logger.error(f"Error in semantic chunking: {str(e)}")
+        return local_semantic_chunking(text)  # Fallback to local semantic chunking
 
 
-def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
+def process_long_text_semantically(text: str, chunk_size: int = 15000, overlap: int = 300) -> List[Dict[str, Any]]:
     """
     Process a long text by breaking it into smaller pieces and chunking each piece semantically.
-    Uses parallel processing and JSON mode for better performance.
+    Uses optimized parallel processing for better performance.
 
     Args:
         text: The long text to process
+        chunk_size: Size of each text chunk
+        overlap: Overlap between chunks
 
     Returns:
         List of semantic chunks
     """
-    # Create chunks of 25000 characters with 500 character overlap
+    # Create optimized chunks
     text_chunks = []
-    chunk_size = 25000
-    overlap = 500
     start = 0
     text_length = len(text)
 
@@ -274,92 +245,20 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
         text_chunks.append(text[start:end])
         start = end - overlap if end < text_length else text_length
 
-    # Process each chunk in parallel
+    # Process chunks in parallel with optimized worker count
     all_semantic_chunks = []
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        # Define a worker function
-        def process_chunk(chunk_text):
-            try:
-                # Get the OpenAI client
-                openai_client = get_openai_client()
-
-                # Process this chunk with JSON mode
-                response = openai_client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an expert at analyzing and dividing text into meaningful semantic chunks. Your output should be valid JSON.",
-                        },
-                        {
-                            "role": "user",
-                            "content": f"""Please analyze the following text and divide it into logical semantic chunks. 
-                            Each chunk should represent a cohesive unit of information or a distinct section.
-                            
-                            Return your results as a JSON object with this structure:
-                            {{
-                                "chunks": [
-                                    {{
-                                        "text": "the text of the chunk",
-                                        "title": "a descriptive title for this chunk",
-                                        "position": "beginning/middle/end"
-                                    }},
-                                    ...
-                                ]
-                            }}
-                            
-                            Text to chunk:
-                            
-                            {chunk_text}""",
-                        },
-                    ],
-                    max_tokens=4000,
-                    temperature=0.1,
-                    response_format={"type": "json_object"},
-                )
-
-                # Parse the response
-                result = json.loads(response.choices[0].message.content)
-
-                # Convert the response to our standard chunk format
-                sub_chunks = []
-                current_position = 0
-
-                for i, chunk_data in enumerate(result.get("chunks", [])):
-                    chunk_text = chunk_data.get("text", "")
-                    # Find position in the original chunk
-                    start_position = chunk_text.find(chunk_text, current_position)
-                    if start_position == -1:
-                        start_position = current_position
-
-                    end_position = start_position + len(chunk_text)
-
-                    sub_chunks.append(
-                        {
-                            "text": chunk_text,
-                            "metadata": {
-                                "title": chunk_data.get("title", f"Subchunk {i + 1}"),
-                                "position": chunk_data.get("position", "unknown"),
-                                "start_char": start_position,
-                                "end_char": end_position,
-                                "strategy": "semantic",
-                            },
-                        }
-                    )
-
-                    current_position = end_position
-
-                return sub_chunks
-            except Exception as e:
-                logger.error(
-                    f"Error processing semantic subchunk with JSON mode: {str(e)}"
-                )
-                return []
-
-        # Submit all tasks and gather results
-        futures = [executor.submit(process_chunk, chunk) for chunk in text_chunks]
+    max_workers = min(8, len(text_chunks))  # Limit parallel workers
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(semantic_chunk_with_structured_output, chunk) for chunk in text_chunks]
+        
         for future in concurrent.futures.as_completed(futures):
-            all_semantic_chunks.extend(future.result())
+            try:
+                chunks = future.result()
+                all_semantic_chunks.extend(chunks)
+            except Exception as e:
+                logger.error(f"Error processing semantic chunk: {str(e)}")
+                continue
 
     return all_semantic_chunks
 
@@ -367,7 +266,7 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
 def extract_text_from_pdf(pdf_path: str) -> str:
     """
     Extract text from a PDF file with optimized performance.
-    Uses parallel processing for multi-page PDFs.
+    Uses parallel processing and improved memory management.
 
     Args:
         pdf_path: Path to the PDF file
@@ -375,37 +274,64 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     Returns:
         Extracted text from the PDF
     """
-
     try:
+        log_memory_usage("pdf_extraction_start")
+        
         with open(pdf_path, "rb") as file:
             reader = PyPDF2.PdfReader(file)
+            total_pages = len(reader.pages)
 
-            # Function to extract text from a page
+            # Function to extract text from a page with improved error handling
             def extract_page_text(page_idx):
                 try:
+                    # Check memory usage before processing each page
+                    if not check_memory_usage():
+                        logger.warning(f"Memory usage high before processing page {page_idx}")
+                        return ""
+                        
                     page = reader.pages[page_idx]
-                    text = page.extract_text() or ""
-                    return text
+                    # Use a more efficient text extraction method with layout preservation
+                    text = page.extract_text(extraction_mode="layout") or ""
+                    return text.strip()
                 except Exception as e:
-                    logger.warning(
-                        f"Error extracting text from page {page_idx}: {str(e)}"
-                    )
+                    logger.warning(f"Error extracting text from page {page_idx}: {str(e)}")
                     return ""
 
-            # For small PDFs, sequential processing is faster
-            if len(reader.pages) <= 5:
-                all_text = ""
-                for i in range(len(reader.pages)):
-                    all_text += extract_page_text(i) + "\n\n"
-            else:
-                # Process pages in parallel for larger PDFs
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    results = list(
-                        executor.map(extract_page_text, range(len(reader.pages)))
-                    )
-                all_text = "\n\n".join(results)
+            # For small PDFs, use sequential processing
+            if total_pages <= 3:
+                return "\n\n".join(extract_page_text(i) for i in range(total_pages))
 
-        return all_text
+            # For larger PDFs, use parallel processing with optimized chunking
+            optimal_chunk_size = min(10, max(1, total_pages // 4))
+            max_workers = min(8, total_pages)
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Create chunks of pages for better memory management
+                page_chunks = [range(i, min(i + optimal_chunk_size, total_pages)) 
+                             for i in range(0, total_pages, optimal_chunk_size)]
+                
+                # Process each chunk of pages
+                chunk_results = []
+                for chunk in page_chunks:
+                    # Check memory usage before processing each chunk
+                    if not check_memory_usage():
+                        logger.warning("Memory usage high before processing chunk")
+                        # Reduce chunk size if memory is low
+                        optimal_chunk_size = max(1, optimal_chunk_size // 2)
+                        continue
+                        
+                    futures = [executor.submit(extract_page_text, page_idx) for page_idx in chunk]
+                    chunk_texts = [f.result() for f in concurrent.futures.as_completed(futures)]
+                    chunk_results.extend(chunk_texts)
+                    
+                    # Log memory usage after each chunk
+                    log_memory_usage(f"pdf_chunk_{chunk[0]}-{chunk[-1]}")
+
+            # Join results with minimal memory overhead
+            result = "\n\n".join(filter(None, chunk_results))
+            log_memory_usage("pdf_extraction_end")
+            return result
+
     except Exception as e:
         logger.error(f"Error extracting text from PDF: {str(e)}")
         raise
@@ -485,3 +411,66 @@ def extract_text_from_pptx(pptx_path: str) -> str:
     except Exception as e:
         logger.error(f"Error extracting text from PPTX: {str(e)}")
         raise
+
+
+def local_semantic_chunking(text: str) -> List[Dict[str, Any]]:
+    """
+    Perform semantic chunking locally without using OpenAI API.
+    Uses heuristics to identify semantic boundaries.
+
+    Args:
+        text: The text to chunk
+
+    Returns:
+        List of chunks with metadata
+    """
+    # Define semantic boundary patterns
+    boundary_patterns = [
+        r"\n\s*\n",  # Double newline
+        r"[.!?]\s+(?=[A-Z])",  # Sentence end followed by capital letter
+        r"\n(?=[A-Z][a-z])",  # Newline followed by title case
+        r"\n(?=\d+\.\s)",  # Newline followed by numbered list
+        r"\n(?=[IVXLCDM]+\.\s)",  # Newline followed by roman numeral
+    ]
+    
+    # Combine patterns
+    boundary_regex = re.compile("|".join(f"({pattern})" for pattern in boundary_patterns))
+    
+    # Split text into potential chunks
+    potential_chunks = boundary_regex.split(text)
+    chunks = []
+    current_position = 0
+    
+    # Process each potential chunk
+    for chunk in potential_chunks:
+        if not chunk or chunk.isspace():
+            continue
+            
+        # Clean up the chunk
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+            
+        # Find position in original text
+        start_position = text.find(chunk, current_position)
+        if start_position == -1:
+            start_position = current_position
+            
+        end_position = start_position + len(chunk)
+        
+        # Only create chunk if it's not too small
+        if len(chunk) >= 50:  # Minimum chunk size
+            chunks.append({
+                "text": chunk,
+                "metadata": {
+                    "title": f"Chunk {len(chunks) + 1}",
+                    "position": "middle" if len(chunks) > 0 and len(chunks) < len(potential_chunks) - 1 else "beginning" if len(chunks) == 0 else "end",
+                    "start_char": start_position,
+                    "end_char": end_position,
+                    "strategy": "semantic",
+                },
+            })
+            
+        current_position = end_position
+    
+    return chunks
