@@ -44,10 +44,37 @@ async def chunk_document(
     elif file_name.endswith(".pptx"):
         file_type = "pptx"
         file_suffix = ".pptx"
+    elif file_name.endswith(".doc"):
+        file_type = "doc"
+        file_suffix = ".doc"
+    elif file_name.endswith(".xlsx"):
+        file_type = "xlsx"
+        file_suffix = ".xlsx"
+    elif file_name.endswith(".xls"):
+        file_type = "xls"
+        file_suffix = ".xls"
+    elif file_name.endswith(".odt"):
+        file_type = "odt"
+        file_suffix = ".odt"
+    elif file_name.endswith(".ods"):
+        file_type = "ods"
+        file_suffix = ".ods"
+    elif file_name.endswith(".odp"):
+        file_type = "odp"
+        file_suffix = ".odp"
+    elif file_name.endswith(".txt"):
+        file_type = "txt"
+        file_suffix = ".txt"
+    elif file_name.endswith(".rtf"):
+        file_type = "rtf"
+        file_suffix = ".rtf"
+    elif file_name.endswith(".epub"):
+        file_type = "epub"
+        file_suffix = ".epub"
     else:
         raise HTTPException(
             status_code=400,
-            detail="Unsupported file type. Only PDF, DOCX, and PPTX are supported.",
+            detail="Unsupported file type. Supported formats: PDF, DOCX, PPTX, DOC, XLSX, XLS, ODT, ODS, ODP, TXT, RTF, EPUB",
         )
 
     file_path = None  # Initialize file_path

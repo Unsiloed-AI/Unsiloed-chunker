@@ -485,3 +485,204 @@ def extract_text_from_pptx(pptx_path: str) -> str:
     except Exception as e:
         logger.error(f"Error extracting text from PPTX: {str(e)}")
         raise
+
+
+def extract_text_from_doc(doc_path: str) -> str:
+    """
+    Extract text from a legacy DOC file.
+
+    Args:
+        doc_path: Path to the DOC file
+
+    Returns:
+        Extracted text from the DOC file
+    """
+    try:
+        import textract
+
+        return textract.process(doc_path).decode("utf-8")
+    except Exception as e:
+        logger.error(f"Error extracting text from DOC: {str(e)}")
+        raise
+
+
+def extract_text_from_xlsx(xlsx_path: str) -> str:
+    """
+    Extract text from an XLSX file.
+
+    Args:
+        xlsx_path: Path to the XLSX file
+
+    Returns:
+        Extracted text from the XLSX file
+    """
+    try:
+        import pandas as pd
+
+        text = []
+        xls = pd.ExcelFile(xlsx_path)
+        for sheet_name in xls.sheet_names:
+            df = pd.read_excel(xlsx_path, sheet_name=sheet_name)
+            text.append(f"Sheet: {sheet_name}\n")
+            text.append(df.to_string())
+            text.append("\n\n")
+        return "\n".join(text)
+    except Exception as e:
+        logger.error(f"Error extracting text from XLSX: {str(e)}")
+        raise
+
+
+def extract_text_from_xls(xls_path: str) -> str:
+    """
+    Extract text from a legacy XLS file.
+
+    Args:
+        xls_path: Path to the XLS file
+
+    Returns:
+        Extracted text from the XLS file
+    """
+    try:
+        import pandas as pd
+
+        text = []
+        xls = pd.ExcelFile(xls_path)
+        for sheet_name in xls.sheet_names:
+            df = pd.read_excel(xls_path, sheet_name=sheet_name)
+            text.append(f"Sheet: {sheet_name}\n")
+            text.append(df.to_string())
+            text.append("\n\n")
+        return "\n".join(text)
+    except Exception as e:
+        logger.error(f"Error extracting text from XLS: {str(e)}")
+        raise
+
+
+def extract_text_from_odt(odt_path: str) -> str:
+    """
+    Extract text from an ODT file.
+
+    Args:
+        odt_path: Path to the ODT file
+
+    Returns:
+        Extracted text from the ODT file
+    """
+    try:
+        import textract
+
+        return textract.process(odt_path).decode("utf-8")
+    except Exception as e:
+        logger.error(f"Error extracting text from ODT: {str(e)}")
+        raise
+
+
+def extract_text_from_ods(ods_path: str) -> str:
+    """
+    Extract text from an ODS file.
+
+    Args:
+        ods_path: Path to the ODS file
+
+    Returns:
+        Extracted text from the ODS file
+    """
+    try:
+        import pandas as pd
+
+        text = []
+        df = pd.read_excel(ods_path, engine="odf")
+        text.append(df.to_string())
+        return "\n".join(text)
+    except Exception as e:
+        logger.error(f"Error extracting text from ODS: {str(e)}")
+        raise
+
+
+def extract_text_from_odp(odp_path: str) -> str:
+    """
+    Extract text from an ODP file.
+
+    Args:
+        odp_path: Path to the ODP file
+
+    Returns:
+        Extracted text from the ODP file
+    """
+    try:
+        import textract
+
+        return textract.process(odp_path).decode("utf-8")
+    except Exception as e:
+        logger.error(f"Error extracting text from ODP: {str(e)}")
+        raise
+
+
+def extract_text_from_txt(txt_path: str) -> str:
+    """
+    Extract text from a TXT file.
+
+    Args:
+        txt_path: Path to the TXT file
+
+    Returns:
+        Extracted text from the TXT file
+    """
+    try:
+        with open(txt_path, "r", encoding="utf-8") as file:
+            return file.read()
+    except UnicodeDecodeError:
+        # Try with a different encoding if UTF-8 fails
+        with open(txt_path, "r", encoding="latin-1") as file:
+            return file.read()
+    except Exception as e:
+        logger.error(f"Error extracting text from TXT: {str(e)}")
+        raise
+
+
+def extract_text_from_rtf(rtf_path: str) -> str:
+    """
+    Extract text from an RTF file.
+
+    Args:
+        rtf_path: Path to the RTF file
+
+    Returns:
+        Extracted text from the RTF file
+    """
+    try:
+        import textract
+
+        return textract.process(rtf_path).decode("utf-8")
+    except Exception as e:
+        logger.error(f"Error extracting text from RTF: {str(e)}")
+        raise
+
+
+def extract_text_from_epub(epub_path: str) -> str:
+    """
+    Extract text from an EPUB file.
+
+    Args:
+        epub_path: Path to the EPUB file
+
+    Returns:
+        Extracted text from the EPUB file
+    """
+    try:
+        import ebooklib
+        from ebooklib import epub
+        from bs4 import BeautifulSoup
+
+        book = epub.read_epub(epub_path)
+        text = []
+
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                soup = BeautifulSoup(item.get_content(), "html.parser")
+                text.append(soup.get_text())
+
+        return "\n\n".join(text)
+    except Exception as e:
+        logger.error(f"Error extracting text from EPUB: {str(e)}")
+        raise
