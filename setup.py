@@ -34,6 +34,13 @@ setup(
         "numpy",
         "opencv-python-headless",
         "requests",
+        "docx2txt",
+        "openpyxl",
+        "xlrd",
+        "odfpy",
+        "ebooklib",
+        "striprtf",
+        "beautifulsoup4",
     ],
     extras_require={
         "all": [

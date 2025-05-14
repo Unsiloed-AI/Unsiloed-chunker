@@ -5,7 +5,11 @@ A super simple way to extract text from documents for  for intelligent document 
 ## 🚀 Features
 
 ### 📊 Document Chunking
-- **Supported File Types**: PDF, DOCX, PPTX
+- **Supported File Types**:
+  - **Document Formats**: PDF, DOCX, DOC, TXT, RTF, EPUB
+  - **Spreadsheet Formats**: XLSX, XLS, ODS
+  - **Presentation Formats**: PPTX, ODP
+  - **OpenDocument Formats**: ODT, ODS, ODP
 - **Chunking Strategies**:
   - **Fixed Size**: Splits text into chunks of specified size with optional overlap
   - **Page-based**: Splits PDF by pages (PDF only, falls back to paragraph for other file types)
@@ -66,7 +70,7 @@ A super simple way to extract text from documents for  for intelligent document 
 ## 📋 Request Parameters
 
 ### Document Chunking Endpoint
-- `document_file`: The document file to process (PDF, DOCX, PPTX)
+- `document_file`: The document file to process (PDF, DOCX, PPTX, DOC, XLSX, XLS, ODT, ODS, ODP, TXT, RTF, EPUB)
 - `strategy`: Chunking strategy to use (default: "semantic")
   - Options: "fixed", "page", "semantic", "paragraph", "heading"
 - `chunk_size`: Size of chunks for fixed strategy in characters (default: 1000)
@@ -97,6 +101,12 @@ Unsiloed requires Python 3.8 or higher and has the following dependencies:
 - python-pptx
 - fastapi
 - python-multipart
+- docx2txt (for DOC files)
+- openpyxl (for XLSX files)
+- xlrd (for XLS files)
+- odfpy (for ODT, ODS, ODP files)
+- ebooklib and beautifulsoup4 (for EPUB files)
+- striprtf (for RTF files)
 
 Optional dependencies based on model provider:
 - anthropic (for Claude models)

@@ -72,8 +72,35 @@ async def process(options):
             elif file_path.lower().endswith(".pptx"):
                 file_type = "pptx"
                 suffix = ".pptx"
+            elif file_path.lower().endswith(".doc"):
+                file_type = "doc"
+                suffix = ".doc"
+            elif file_path.lower().endswith(".xlsx"):
+                file_type = "xlsx"
+                suffix = ".xlsx"
+            elif file_path.lower().endswith(".xls"):
+                file_type = "xls"
+                suffix = ".xls"
+            elif file_path.lower().endswith(".odt"):
+                file_type = "odt"
+                suffix = ".odt"
+            elif file_path.lower().endswith(".ods"):
+                file_type = "ods"
+                suffix = ".ods"
+            elif file_path.lower().endswith(".odp"):
+                file_type = "odp"
+                suffix = ".odp"
+            elif file_path.lower().endswith(".txt"):
+                file_type = "txt"
+                suffix = ".txt"
+            elif file_path.lower().endswith(".rtf"):
+                file_type = "rtf"
+                suffix = ".rtf"
+            elif file_path.lower().endswith(".epub"):
+                file_type = "epub"
+                suffix = ".epub"
             else:
-                raise ValueError("Unsupported file type. Only PDF, DOCX, and PPTX are supported.")
+                raise ValueError("Unsupported file type. Supported formats: PDF, DOCX, PPTX, DOC, XLSX, XLS, ODT, ODS, ODP, TXT, RTF, EPUB.")
 
             # Save to temporary file
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -88,8 +115,26 @@ async def process(options):
                 file_type = "docx"
             elif file_path.lower().endswith(".pptx"):
                 file_type = "pptx"
+            elif file_path.lower().endswith(".doc"):
+                file_type = "doc"
+            elif file_path.lower().endswith(".xlsx"):
+                file_type = "xlsx"
+            elif file_path.lower().endswith(".xls"):
+                file_type = "xls"
+            elif file_path.lower().endswith(".odt"):
+                file_type = "odt"
+            elif file_path.lower().endswith(".ods"):
+                file_type = "ods"
+            elif file_path.lower().endswith(".odp"):
+                file_type = "odp"
+            elif file_path.lower().endswith(".txt"):
+                file_type = "txt"
+            elif file_path.lower().endswith(".rtf"):
+                file_type = "rtf"
+            elif file_path.lower().endswith(".epub"):
+                file_type = "epub"
             else:
-                raise ValueError("Unsupported file type. Only PDF, DOCX, and PPTX are supported.")
+                raise ValueError("Unsupported file type. Supported formats: PDF, DOCX, PPTX, DOC, XLSX, XLS, ODT, ODS, ODP, TXT, RTF, EPUB.")
 
         # Process the document
         result = process_document_chunking(

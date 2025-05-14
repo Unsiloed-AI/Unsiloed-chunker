@@ -67,13 +67,13 @@ def create_extraction_prompt(schema: Dict[str, Any], page_count: int) -> str:
 
     prompt = f"""
     You are an expert at extracting structured data from documents.
-    
+
     I have a document with {page_count} pages that has been converted to images. I need you to extract specific information from these images according to the following JSON schema:
-    
+
     {schema_str}
-    
+
     Please follow these instructions carefully:
-    
+
     1. Examine all {page_count} images thoroughly to find the requested information.
     2. Extract the exact text from the document that matches each field in the schema.
     3. If you cannot find information for a specific field in any of the pages, return an empty string or null value for that field.
@@ -86,7 +86,7 @@ def create_extraction_prompt(schema: Dict[str, Any], page_count: int) -> str:
     10. For dates, numbers, and other formatted data, maintain the format as shown in the document.
     11. IMPORTANT: Your response MUST be a valid JSON object that exactly matches the structure of the provided schema.
     12. IMPORTANT: Do not include any explanations, just return the JSON object.
-    
+
     Your response should be a valid JSON object containing only the extracted data.
     """
 
@@ -119,7 +119,7 @@ def semantic_chunk_with_structured_output(text: str, provider_name: Optional[str
 
         # Create a system prompt for the model
         system_prompt = "You are an expert at analyzing and dividing text into meaningful semantic chunks. Your output should be valid JSON."
-        
+
         # Define the output schema
         output_schema = {
             "chunks": [
@@ -130,15 +130,15 @@ def semantic_chunk_with_structured_output(text: str, provider_name: Optional[str
                 }
             ]
         }
-        
+
         # Create the user prompt
-        user_prompt = f"""Please analyze the following text and divide it into logical semantic chunks. 
+        user_prompt = f"""Please analyze the following text and divide it into logical semantic chunks.
         Each chunk should represent a cohesive unit of information or a distinct section.
-        
+
         Text to chunk:
-        
+
         {text}"""
-        
+
         # Generate structured output using the model provider
         result = model_provider.generate_structured_output(
             prompt=user_prompt,
@@ -382,4 +382,297 @@ def extract_text_from_pptx(pptx_path: str) -> str:
         return "\n\n".join(full_text)
     except Exception as e:
         logger.error(f"Error extracting text from PPTX: {str(e)}")
+        raise
+
+
+def extract_text_from_doc(doc_path: str) -> str:
+    """
+    Extract text from a DOC file (older Microsoft Word format).
+
+    Args:
+        doc_path: Path to the DOC file
+
+    Returns:
+        Extracted text from the DOC
+    """
+    try:
+        import docx2txt  # docx2txt package
+
+        # Extract text including images (images will be ignored)
+        text = docx2txt.process(doc_path)
+        return text
+    except Exception as e:
+        logger.error(f"Error extracting text from DOC: {str(e)}")
+        raise
+
+
+def extract_text_from_xlsx(xlsx_path: str) -> str:
+    """
+    Extract text from an XLSX file (Excel).
+
+    Args:
+        xlsx_path: Path to the XLSX file
+
+    Returns:
+        Extracted text from the XLSX
+    """
+    try:
+        import openpyxl  # openpyxl package
+
+        workbook = openpyxl.load_workbook(xlsx_path, data_only=True)
+        full_text = []
+
+        # Process each worksheet
+        for sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+            sheet_text = [f"Sheet: {sheet_name}"]
+
+            # Get the used range
+            rows = list(sheet.rows)
+            if not rows:
+                continue
+
+            # Process each row
+            for row in rows:
+                row_values = [str(cell.value) if cell.value is not None else "" for cell in row]
+                if any(row_values):  # Skip empty rows
+                    sheet_text.append(" | ".join(row_values))
+
+            full_text.append("\n".join(sheet_text))
+
+        return "\n\n".join(full_text)
+    except Exception as e:
+        logger.error(f"Error extracting text from XLSX: {str(e)}")
+        raise
+
+
+def extract_text_from_xls(xls_path: str) -> str:
+    """
+    Extract text from an XLS file (older Excel format).
+
+    Args:
+        xls_path: Path to the XLS file
+
+    Returns:
+        Extracted text from the XLS
+    """
+    try:
+        import xlrd  # xlrd package
+
+        workbook = xlrd.open_workbook(xls_path)
+        full_text = []
+
+        # Process each worksheet
+        for sheet_index in range(workbook.nsheets):
+            sheet = workbook.sheet_by_index(sheet_index)
+            sheet_text = [f"Sheet: {sheet.name}"]
+
+            # Process each row
+            for row_idx in range(sheet.nrows):
+                row_values = [str(sheet.cell_value(row_idx, col_idx)) for col_idx in range(sheet.ncols)]
+                if any(value.strip() for value in row_values):  # Skip empty rows
+                    sheet_text.append(" | ".join(row_values))
+
+            full_text.append("\n".join(sheet_text))
+
+        return "\n\n".join(full_text)
+    except Exception as e:
+        logger.error(f"Error extracting text from XLS: {str(e)}")
+        raise
+
+
+def extract_text_from_odt(odt_path: str) -> str:
+    """
+    Extract text from an ODT file (OpenDocument Text).
+
+    Args:
+        odt_path: Path to the ODT file
+
+    Returns:
+        Extracted text from the ODT
+    """
+    try:
+        from odf import text, teletype
+        from odf.opendocument import load
+
+        textdoc = load(odt_path)
+        paragraphs = textdoc.getElementsByType(text.P)
+
+        # Extract text from paragraphs
+        full_text = [teletype.extractText(paragraph) for paragraph in paragraphs]
+
+        return "\n\n".join(full_text)
+    except Exception as e:
+        logger.error(f"Error extracting text from ODT: {str(e)}")
+        raise
+
+
+def extract_text_from_ods(ods_path: str) -> str:
+    """
+    Extract text from an ODS file (OpenDocument Spreadsheet).
+
+    Args:
+        ods_path: Path to the ODS file
+
+    Returns:
+        Extracted text from the ODS
+    """
+    try:
+        from odf import text, teletype
+        from odf.opendocument import load
+        from odf.table import Table, TableRow, TableCell
+
+        spreadsheet = load(ods_path)
+        full_text = []
+
+        # Get all tables
+        tables = spreadsheet.getElementsByType(Table)
+
+        for table_index, table in enumerate(tables):
+            table_text = [f"Sheet {table_index + 1}: {table.getAttribute('name') or ''}"]
+
+            # Get all rows in the table
+            rows = table.getElementsByType(TableRow)
+
+            for row in rows:
+                # Get all cells in the row
+                cells = row.getElementsByType(TableCell)
+                row_values = []
+
+                for cell in cells:
+                    # Extract text from the cell
+                    paragraphs = cell.getElementsByType(text.P)
+                    cell_text = " ".join([teletype.extractText(p) for p in paragraphs])
+                    row_values.append(cell_text)
+
+                if any(row_values):  # Skip empty rows
+                    table_text.append(" | ".join(row_values))
+
+            full_text.append("\n".join(table_text))
+
+        return "\n\n".join(full_text)
+    except Exception as e:
+        logger.error(f"Error extracting text from ODS: {str(e)}")
+        raise
+
+
+def extract_text_from_odp(odp_path: str) -> str:
+    """
+    Extract text from an ODP file (OpenDocument Presentation).
+
+    Args:
+        odp_path: Path to the ODP file
+
+    Returns:
+        Extracted text from the ODP
+    """
+    try:
+        from odf import text, teletype
+        from odf.opendocument import load
+        from odf.draw import Page
+
+        presentation = load(odp_path)
+        full_text = []
+
+        # Get all pages (slides)
+        pages = presentation.getElementsByType(Page)
+
+        for page_index, page in enumerate(pages):
+            page_text = [f"Slide {page_index + 1}: {page.getAttribute('name') or ''}"]
+
+            # Get all text elements in the page
+            paragraphs = page.getElementsByType(text.P)
+
+            for paragraph in paragraphs:
+                paragraph_text = teletype.extractText(paragraph)
+                if paragraph_text.strip():
+                    page_text.append(paragraph_text)
+
+            full_text.append("\n".join(page_text))
+
+        return "\n\n".join(full_text)
+    except Exception as e:
+        logger.error(f"Error extracting text from ODP: {str(e)}")
+        raise
+
+
+def extract_text_from_txt(txt_path: str) -> str:
+    """
+    Extract text from a TXT file (plain text).
+
+    Args:
+        txt_path: Path to the TXT file
+
+    Returns:
+        Extracted text from the TXT
+    """
+    try:
+        with open(txt_path, 'r', encoding='utf-8', errors='replace') as file:
+            return file.read()
+    except Exception as e:
+        logger.error(f"Error extracting text from TXT: {str(e)}")
+        raise
+
+
+def extract_text_from_rtf(rtf_path: str) -> str:
+    """
+    Extract text from an RTF file (Rich Text Format).
+
+    Args:
+        rtf_path: Path to the RTF file
+
+    Returns:
+        Extracted text from the RTF
+    """
+    try:
+        from striprtf.striprtf import rtf_to_text
+
+        with open(rtf_path, 'r', encoding='utf-8', errors='replace') as file:
+            rtf_text = file.read()
+
+        # Convert RTF to plain text
+        plain_text = rtf_to_text(rtf_text)
+        return plain_text
+    except Exception as e:
+        logger.error(f"Error extracting text from RTF: {str(e)}")
+        raise
+
+
+def extract_text_from_epub(epub_path: str) -> str:
+    """
+    Extract text from an EPUB file (e-book).
+
+    Args:
+        epub_path: Path to the EPUB file
+
+    Returns:
+        Extracted text from the EPUB
+    """
+    try:
+        import ebooklib
+        from ebooklib import epub
+        from bs4 import BeautifulSoup
+
+        # Function to extract text from HTML content
+        def chapter_to_text(chapter_content):
+            soup = BeautifulSoup(chapter_content, 'html.parser')
+            text = soup.get_text()
+            # Clean up whitespace
+            lines = (line.strip() for line in text.splitlines())
+            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+            text = '\n'.join(chunk for chunk in chunks if chunk)
+            return text
+
+        # Load the EPUB file
+        book = epub.read_epub(epub_path)
+        chapters = []
+
+        # Extract content from each chapter
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                chapters.append(chapter_to_text(item.get_content()))
+
+        return "\n\n".join(chapters)
+    except Exception as e:
+        logger.error(f"Error extracting text from EPUB: {str(e)}")
         raise
