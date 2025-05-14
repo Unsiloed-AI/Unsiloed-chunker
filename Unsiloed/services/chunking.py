@@ -5,7 +5,7 @@ from Unsiloed.utils.chunking import (
     heading_chunking,
     semantic_chunking,
 )
-from Unsiloed.utils.openai import (
+from Unsiloed.utils.model_utils import (
     extract_text_from_pdf,
     extract_text_from_docx,
     extract_text_from_pptx,
@@ -22,6 +22,7 @@ def process_document_chunking(
     strategy,
     chunk_size=1000,
     overlap=100,
+    provider_name=None,
 ):
     """
     Process a document file (PDF, DOCX, PPTX) with the specified chunking strategy.
@@ -32,12 +33,13 @@ def process_document_chunking(
         strategy: Chunking strategy to use
         chunk_size: Size of chunks for fixed strategy
         overlap: Overlap size for fixed strategy
+        provider_name: Name of the model provider to use (default: from config)
 
     Returns:
         Dictionary with chunking results
     """
     logger.info(
-        f"Processing {file_type.upper()} document with {strategy} chunking strategy"
+        f"Processing {file_type.upper()} document with {strategy} chunking strategy using provider: {provider_name or 'default'}"
     )
 
     # Handle page-based chunking for PDFs only
@@ -58,7 +60,7 @@ def process_document_chunking(
         if strategy == "fixed":
             chunks = fixed_size_chunking(text, chunk_size, overlap)
         elif strategy == "semantic":
-            chunks = semantic_chunking(text)
+            chunks = semantic_chunking(text, provider_name)
         elif strategy == "paragraph":
             chunks = paragraph_chunking(text)
         elif strategy == "heading":
@@ -85,6 +87,7 @@ def process_document_chunking(
         "strategy": strategy,
         "total_chunks": total_chunks,
         "avg_chunk_size": avg_chunk_size,
+        "model_provider": provider_name or "default",
         "chunks": chunks,
     }
 
