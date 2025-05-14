@@ -11,3 +11,9 @@ openai
 numpy
 opencv-python-headless
 requests
+striprtf
+openpyxl
+xlrd
+odfpy
+ebooklib
+beautifulsoup4

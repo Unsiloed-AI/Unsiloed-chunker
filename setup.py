@@ -34,6 +34,11 @@ setup(
         "numpy",
         "opencv-python-headless",
         "requests",
+        "beautifulsoup4"
+        "openpyxl",
+        "xlrd",
+        "odfpy",
+        "ebooklib",
     ],
     entry_points={
         "console_scripts": [
