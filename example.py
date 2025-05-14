@@ -1,8 +1,8 @@
 import os
-import chunktopus
+from Unsiloed import process_sync
 
 # Example usage with a URL
-result = chunktopus.process_sync({
+result = process_sync({
     "filePath": "https://omni-demo-data.s3.amazonaws.com/test/cs101.pdf",
     "credentials": {
         "apiKey": os.environ.get("OPENAI_API_KEY")
@@ -23,9 +23,10 @@ if result['chunks'] and len(result['chunks']) > 0:
 """
 # Async example (uncomment to use)
 import asyncio
+from Unsiloed import process
 
 async def main():
-    result = await chunktopus.process({
+    result = await process({
         "filePath": "https://omni-demo-data.s3.amazonaws.com/test/cs101.pdf",
         "credentials": {
             "apiKey": os.environ.get("OPENAI_API_KEY")
