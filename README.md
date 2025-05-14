@@ -15,9 +15,13 @@ A super simple way to extract text from documents for  for intelligent document 
 
 ## 🔧 Technical Details
 
-### 🧠 OpenAI Integration
-- Uses OpenAI GPT-4o for semantic chunking
-- Handles authentication via API key from environment variables
+### 🧠 Multiple Model Support
+- Supports multiple LLM providers:
+  - **OpenAI**: GPT-4o and other OpenAI models
+  - **Anthropic**: Claude models
+  - **Hugging Face**: Hosted models like Mistral
+  - **Local**: Self-hosted models via llama.cpp
+- Handles authentication via API keys from environment variables
 - Implements automatic retries and timeout handling
 - Provides structured JSON output for semantic chunks
 
@@ -35,6 +39,10 @@ A super simple way to extract text from documents for  for intelligent document 
 
 ### Environmental Variables
 - `OPENAI_API_KEY`: Your OpenAI API key
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
+- `HUGGINGFACE_API_KEY`: Your Hugging Face API key
+- `LOCAL_MODEL_PATH`: Path to your local LLM model
+- `UNSILOED_MODEL_PROVIDER`: Default model provider to use (openai, anthropic, huggingface, local)
 
 ## 🛑 Constraints & Limitations
 
@@ -44,11 +52,16 @@ A super simple way to extract text from documents for  for intelligent document 
 
 ### Text Processing
 - Long text (>25,000 characters) is automatically split and processed in parallel for semantic chunking
-- Maximum token limit of 4000 for OpenAI responses
+- Maximum token limit of 4000 for model responses
 
 ### API Constraints
 - Request timeout set to 60 seconds
-- Maximum of 3 retries for OpenAI API calls
+- Maximum of 3 retries for API calls
+- Different models have different capabilities and limitations
+  - OpenAI models: Best overall quality for semantic chunking
+  - Anthropic models: Good alternative with similar capabilities
+  - Hugging Face models: Varies by model, may require specific model selection
+  - Local models: Performance depends on hardware and model size
 
 ## 📋 Request Parameters
 
@@ -64,9 +77,17 @@ A super simple way to extract text from documents for  for intelligent document 
 
 ### Using pip
 ```bash
+# Basic installation with OpenAI support
 pip install unsiloed
-```
 
+# Install with all model providers
+pip install unsiloed[all]
+
+# Install with specific model providers
+pip install unsiloed[anthropic]  # For Anthropic Claude support
+pip install unsiloed[huggingface]  # For Hugging Face models support
+pip install unsiloed[local]  # For local LLM support via llama.cpp
+```
 
 ### Requirements
 Unsiloed requires Python 3.8 or higher and has the following dependencies:
@@ -77,26 +98,47 @@ Unsiloed requires Python 3.8 or higher and has the following dependencies:
 - fastapi
 - python-multipart
 
+Optional dependencies based on model provider:
+- anthropic (for Claude models)
+- huggingface_hub (for Hugging Face models)
+- llama-cpp-python (for local LLM models)
+
 ## 🔑 Environment Setup
 
-Before using Unsiloed, set up your OpenAI API key:
+Before using Unsiloed, set up your API keys for the model providers you want to use:
 
 ### Using environment variables
 ```bash
 # Linux/macOS
-export OPENAI_API_KEY="your-api-key-here"
+export OPENAI_API_KEY="your-openai-api-key-here"
+export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
+export HUGGINGFACE_API_KEY="your-huggingface-api-key-here"
+export LOCAL_MODEL_PATH="/path/to/your/local/model.gguf"
+export UNSILOED_MODEL_PROVIDER="openai"  # Default model provider
 
 # Windows (Command Prompt)
-set OPENAI_API_KEY=your-api-key-here
+set OPENAI_API_KEY=your-openai-api-key-here
+set ANTHROPIC_API_KEY=your-anthropic-api-key-here
+set HUGGINGFACE_API_KEY=your-huggingface-api-key-here
+set LOCAL_MODEL_PATH=C:\path\to\your\local\model.gguf
+set UNSILOED_MODEL_PROVIDER=openai
 
 # Windows (PowerShell)
-$env:OPENAI_API_KEY="your-api-key-here"
+$env:OPENAI_API_KEY="your-openai-api-key-here"
+$env:ANTHROPIC_API_KEY="your-anthropic-api-key-here"
+$env:HUGGINGFACE_API_KEY="your-huggingface-api-key-here"
+$env:LOCAL_MODEL_PATH="C:\path\to\your\local\model.gguf"
+$env:UNSILOED_MODEL_PROVIDER="openai"
 ```
 
 ### Using a .env file
 Create a `.env` file in your project directory:
 ```
-OPENAI_API_KEY=your-api-key-here
+OPENAI_API_KEY=your-openai-api-key-here
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+HUGGINGFACE_API_KEY=your-huggingface-api-key-here
+LOCAL_MODEL_PATH=/path/to/your/local/model.gguf
+UNSILOED_MODEL_PROVIDER=openai
 ```
 
 Then in your Python code:
@@ -113,12 +155,13 @@ load_dotenv()  # This loads the variables from .env
 import os
 import Unsiloed
 
-# Example 1: Semantic chunking (default)
+# Example 1: Semantic chunking with OpenAI (default)
 result = Unsiloed.process_sync({
     "filePath": "./test.pdf",
     "credentials": {
         "apiKey": os.environ.get("OPENAI_API_KEY")
     },
+    "modelProvider": "openai",
     "strategy": "semantic",
     "chunkSize": 1000,
     "overlap": 100
@@ -127,41 +170,65 @@ result = Unsiloed.process_sync({
 # Print the result
 print(result)
 
-# Example 2: Fixed-size chunking
-fixed_result = Unsiloed.process_sync({
-    "filePath": "./test.pdf", #path to your file
+# Example 2: Semantic chunking with Anthropic Claude
+claude_result = Unsiloed.process_sync({
+    "filePath": "./test.pdf",
     "credentials": {
-        "apiKey": os.environ.get("OPENAI_API_KEY")
+        "anthropicApiKey": os.environ.get("ANTHROPIC_API_KEY")
     },
+    "modelProvider": "anthropic",
+    "strategy": "semantic",
+    "chunkSize": 1000,
+    "overlap": 100
+})
+
+# Example 3: Semantic chunking with Hugging Face
+hf_result = Unsiloed.process_sync({
+    "filePath": "./test.pdf",
+    "credentials": {
+        "huggingfaceApiKey": os.environ.get("HUGGINGFACE_API_KEY")
+    },
+    "modelProvider": "huggingface",
+    "strategy": "semantic",
+    "chunkSize": 1000,
+    "overlap": 100
+})
+
+# Example 4: Semantic chunking with local LLM
+local_result = Unsiloed.process_sync({
+    "filePath": "./test.pdf",
+    "credentials": {
+        "localModelPath": os.environ.get("LOCAL_MODEL_PATH")
+    },
+    "modelProvider": "local",
+    "strategy": "semantic",
+    "chunkSize": 1000,
+    "overlap": 100
+})
+
+# Example 5: Fixed-size chunking (model-agnostic)
+fixed_result = Unsiloed.process_sync({
+    "filePath": "./test.pdf",
     "strategy": "fixed",
     "chunkSize": 1500,
     "overlap": 150
 })
 
-# Example 3: Page-based chunking (PDF only)
+# Example 6: Page-based chunking (PDF only, model-agnostic)
 page_result = Unsiloed.process_sync({
     "filePath": "./test.pdf",
-    "credentials": {
-        "apiKey": os.environ.get("OPENAI_API_KEY")
-    },
     "strategy": "page"
 })
 
-# Example 4: Paragraph chunking
+# Example 7: Paragraph chunking (model-agnostic)
 paragraph_result = Unsiloed.process_sync({
     "filePath": "./document.docx",
-    "credentials": {
-        "apiKey": os.environ.get("OPENAI_API_KEY")
-    },
     "strategy": "paragraph"
 })
 
-# Example 5: Heading chunking
+# Example 8: Heading chunking (model-agnostic)
 heading_result = Unsiloed.process_sync({
     "filePath": "./presentation.pptx",
-    "credentials": {
-        "apiKey": os.environ.get("OPENAI_API_KEY")
-    },
     "strategy": "heading"
 })
 ```
@@ -201,8 +268,14 @@ pip install -r requirements.txt
 
 4. Set up your environment variables:
 ```bash
-# Create a .env file
-echo "OPENAI_API_KEY=your-api-key-here" > .env
+# Create a .env file with your API keys
+cat > .env << EOL
+OPENAI_API_KEY=your-openai-api-key-here
+ANTHROPIC_API_KEY=your-anthropic-api-key-here
+HUGGINGFACE_API_KEY=your-huggingface-api-key-here
+LOCAL_MODEL_PATH=/path/to/your/local/model.gguf
+UNSILOED_MODEL_PROVIDER=openai
+EOL
 ```
 
 5. Run the FastAPI server locally:
