@@ -579,30 +579,55 @@ def extract_text_from_opendocument(od_path: str) -> str:
         Extracted text from the OpenDocument file
     """
     try:
-        from odfpy import text, spreadsheet, presentation
+        # Correct imports from the odf package 
+        from odf.opendocument import load
+        from odf.text import P
+        from odf.table import Table, TableRow, TableCell
+        from odf.teletype import extractText
+        
         full_text = []
         
+        # Load the document
+        doc = load(od_path)
+        
         if od_path.lower().endswith('.odt'):
-            doc = text.TextDocument(od_path)
-            for para in doc.getElementsByType(text.P):
-                full_text.append(para.getText())
+            # Extract paragraphs from text document
+            paragraphs = doc.getElementsByType(P)
+            for para in paragraphs:
+                # Use extractText instead of getText
+                text_content = extractText(para)
+                if text_content:
+                    full_text.append(text_content)
+                
         elif od_path.lower().endswith('.ods'):
-            doc = spreadsheet.Spreadsheet(od_path)
-            for sheet in doc.getSheets():
-                sheet_text = [f"Sheet: {sheet.getAttribute('name')}"]
-                for row in sheet.getRows():
-                    row_text = [str(cell.getText()) for cell in row if cell.getText()]
+            # Extract cells from spreadsheet
+            tables = doc.getElementsByType(Table)
+            for table in tables:
+                sheet_text = [f"Sheet: {table.getAttribute('name') or 'Unnamed'}"]
+                
+                rows = table.getElementsByType(TableRow)
+                for row in rows:
+                    cells = row.getElementsByType(TableCell)
+                    row_text = []
+                    for cell in cells:
+                        # Use extractText instead of getText
+                        cell_text = extractText(cell)
+                        if cell_text:
+                            row_text.append(cell_text)
+                    
                     if row_text:
                         sheet_text.append(" | ".join(row_text))
+                        
                 full_text.append("\n".join(sheet_text))
+                
         elif od_path.lower().endswith('.odp'):
-            doc = presentation.Presentation(od_path)
-            for slide in doc.getElementsByType(presentation.Slide):
-                slide_text = [f"Slide {slide.getAttribute('name')}"]
-                for shape in slide.getElementsByType(presentation.Shape):
-                    if shape.getAttribute('text'):
-                        slide_text.append(shape.getAttribute('text'))
-                full_text.append("\n".join(slide_text))
+            # Just extract all paragraph text from presentation
+            paragraphs = doc.getElementsByType(P)
+            for para in paragraphs:
+                # Use extractText instead of getText
+                text_content = extractText(para)
+                if text_content and text_content.strip():
+                    full_text.append(text_content)
         else:
             raise ValueError(f"Unsupported OpenDocument format: {od_path}")
         
