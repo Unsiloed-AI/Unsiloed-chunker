@@ -1,10 +1,11 @@
 import concurrent.futures
-from typing import Literal
+from typing import Literal, List, Dict, Any
 import logging
 import PyPDF2
 from Unsiloed.utils.openai import (
     semantic_chunk_with_structured_output,
 )
+from Unsiloed.utils.text_utils import paragraph_chunking
 
 logger = logging.getLogger(__name__)
 
@@ -81,45 +82,6 @@ def page_based_chunking(pdf_path):
     except Exception as e:
         logger.error(f"Error in page-based chunking: {str(e)}")
         raise
-
-
-def paragraph_chunking(text):
-    """
-    Split text by paragraphs.
-
-    Args:
-        text: The text to chunk
-
-    Returns:
-        List of chunks with metadata
-    """
-    # Split text by double newlines to identify paragraphs
-    paragraphs = text.split("\n\n")
-
-    # Remove empty paragraphs
-    paragraphs = [p.strip() for p in paragraphs if p.strip()]
-
-    chunks = []
-    current_position = 0
-
-    for paragraph in paragraphs:
-        start_position = text.find(paragraph, current_position)
-        end_position = start_position + len(paragraph)
-
-        chunks.append(
-            {
-                "text": paragraph,
-                "metadata": {
-                    "start_char": start_position,
-                    "end_char": end_position,
-                    "strategy": "paragraph",
-                },
-            }
-        )
-
-        current_position = end_position
-
-    return chunks
 
 
 def heading_chunking(text):

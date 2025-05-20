@@ -60,6 +60,11 @@ def process_document_chunking(
             text = extract_text_from_doc(file_path)
         elif file_type == "excel":
             text = extract_text_from_excel(file_path)
+            # For Excel files with semantic strategy, we'll use paragraph chunking
+            # as it's more reliable for tabular data
+            if strategy == "semantic":
+                logger.info("Using paragraph chunking for Excel file instead of semantic chunking")
+                strategy = "paragraph"
         elif file_type == "opendocument":
             text = extract_text_from_opendocument(file_path)
         elif file_type == "text":
