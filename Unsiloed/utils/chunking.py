@@ -1,4 +1,5 @@
 import concurrent.futures
+import re
 from typing import Literal
 import logging
 import PyPDF2
@@ -9,6 +10,12 @@ from Unsiloed.utils.openai import (
 logger = logging.getLogger(__name__)
 
 ChunkingStrategy = Literal["fixed", "page", "semantic", "paragraph", "heading"]
+
+# Precompile frequently used regular expressions for better performance
+RE_PARAGRAPH_SPLIT = re.compile(r'\n\s*\n')
+RE_HEADING_PATTERN = re.compile(r'^(#+|\d+\.+|\w+\:|\*\*|\[.+\])\s+(.+?)$', re.MULTILINE)
+RE_SENTENCE_END = re.compile(r'[.!?]\s+')
+RE_WHITESPACE = re.compile(r'\s+')
 
 
 def fixed_size_chunking(text, chunk_size=1000, overlap=100):
@@ -94,9 +101,9 @@ def paragraph_chunking(text):
         List of chunks with metadata
     """
     # Split text by double newlines to identify paragraphs
-    paragraphs = text.split("\n\n")
+    paragraphs = RE_PARAGRAPH_SPLIT.split(text)
 
-    # Remove empty paragraphs
+    # Remove empty paragraphs using list comprehension for better performance
     paragraphs = [p.strip() for p in paragraphs if p.strip()]
 
     chunks = []
@@ -132,20 +139,8 @@ def heading_chunking(text):
     Returns:
         List of chunks with metadata
     """
-    import re
-
-    # Define patterns for common heading formats
-    heading_patterns = [
-        r"^#{1,6}\s+.+$",  # Markdown headings
-        r"^[A-Z][A-Za-z\s]+$",  # All caps or title case single line
-        r"^\d+\.\s+[A-Z]",  # Numbered headings (1. Title)
-        r"^[IVXLCDMivxlcdm]+\.\s+[A-Z]",  # Roman numeral headings (IV. Title)
-    ]
-
-    # Combine patterns
-    combined_pattern = "|".join(f"({pattern})" for pattern in heading_patterns)
-
-    # Split by lines first
+    # Using the precompiled heading pattern for better performance
+    # Split by lines first for more efficient processing
     lines = text.split("\n")
 
     chunks = []
@@ -154,7 +149,7 @@ def heading_chunking(text):
     current_start = 0
 
     for line in lines:
-        if re.match(combined_pattern, line.strip()):
+        if RE_HEADING_PATTERN.match(line.strip()):
             # If we have accumulated text, save it as a chunk
             if current_text:
                 chunk_text = "\n".join(current_text)

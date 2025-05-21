@@ -1,3 +1,3 @@
 """
-Utils module for Chunktopus.
+Utils module for Unsiloed document chunking.
 """ 
