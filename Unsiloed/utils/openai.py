@@ -1,6 +1,7 @@
 import os
 import base64
 import json
+import re
 from typing import List, Dict, Any
 from openai import OpenAI
 import logging
@@ -264,13 +265,26 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
     """
     # Create chunks of 25000 characters with 500 character overlap
     text_chunks = []
-    chunk_size = 25000
-    overlap = 500
+    chunk_size = 10000  # Reduced from 25000 to create smaller, more manageable chunks
+    overlap = 200
     start = 0
     text_length = len(text)
 
     while start < text_length:
         end = min(start + chunk_size, text_length)
+        
+        # Try to find a natural break point (end of paragraph or sentence)
+        if end < text_length:
+            # Look for the last paragraph break within the last 20% of the chunk
+            last_paragraph_break = text.rfind('\n\n', start, end)
+            if last_paragraph_break != -1 and last_paragraph_break > start + chunk_size * 0.8:
+                end = last_paragraph_break + 2  # Include the newlines
+            else:
+                # Look for sentence breaks (period, exclamation, question mark followed by space or newline)
+                for match in re.finditer(r'[.!?][\s\n]', text[max(start, end - 500):end]):
+                    if match.end() < end:
+                        end = match.end()
+        
         text_chunks.append(text[start:end])
         start = end - overlap if end < text_length else text_length
 
