@@ -145,39 +145,6 @@ The system will automatically select the best processing approach based on the d
 
 The framework provides multiple processing methods for different document types. Here's a performance comparison based on our test suite:
 
-### PDF Processing Performance
-
-- **Standard Processing**: 3.53 seconds, 22 chunks
-- **Streaming Processing**: 6.22 seconds, 102 chunks
-- **Observations**:
-  - Streaming is slower for PDFs (~76% slower)
-  - But produces significantly more chunks (363% more)
-  - More meaningful chunk separation with streaming
-
-### DOCX Processing Performance
-
-- **Standard Processing**: 0.01 seconds, 168 chunks
-- **Streaming Processing**: 0.03 seconds, 57 chunks
-- **Observations**:
-  - Streaming is also slower for DOCX (~70% slower)
-  - Produces fewer chunks (66% fewer)
-  - DOCX processing is 236x faster than PDF processing
-
-### PPTX Processing Performance
-
-- **Standard Processing**: 0.15 seconds, 24 chunks
-- **Streaming Processing**: 0.08 seconds, 1 chunk
-- **Observations**:
-  - Streaming is faster for PPTX (48% faster)
-  - But produces fewer chunks (95% fewer)
-  - PPTX streaming works best for presentations with less text content
-
-### Cross-Document Type Comparisons
-
-- PDF processing is 23.8x slower than PPTX processing (standard method)
-- PDF processing is 81.3x slower than PPTX processing (streaming method)
-- DOCX processing is the fastest overall for both standard and streaming methods
-
 ### Recent Performance Improvements
 
 This project now includes several optimizations for better performance:
@@ -213,24 +180,6 @@ The framework implements a sophisticated caching system to improve performance a
 - **Robust Error Handling**: Graceful degradation with proper exception handling when cache operations fail
 - **Performance Improvement**: Up to 99.9% faster processing for previously seen documents
 
-#### Document Cache Performance
-
-Our benchmarks demonstrate significant performance improvements when processing the same document multiple times:
-
-| Document Type | Chunking Strategy | First Run | Cached Run | Improvement |
-| ------------- | ----------------- | --------- | ---------- | ----------- |
-| PDF           | Paragraph         | 302.59 ms | 0.19 ms    | 99.94%      |
-| PDF           | Fixed Size        | 173.31 ms | 0.29 ms    | 99.83%      |
-| DOCX          | Paragraph         | 26.60 ms  | 0.18 ms    | 99.32%      |
-| DOCX          | Heading           | 15.15 ms  | 0.11 ms    | 99.27%      |
-| PPTX          | Paragraph         | 167.88 ms | 15.79 ms   | 90.59%      |
-
-This dramatic performance improvement is particularly valuable for:
-
-- Interactive applications with repeated document access
-- API-based services with high throughput requirements
-- Batch processing workflows with document reuse
-
 #### API Request Cache
 
 - **Deduplication**: Prevents redundant API calls with identical parameters
@@ -261,81 +210,6 @@ The migration tool automatically:
 - Analyzes each cache entry to determine the optimal cache strategy (TTL or LRU)
 - Preserves all document processing results while optimizing memory usage
 - Generates statistics about migrated entries to verify success
-
-## 🏁 Optimization Summary
-
-This project has undergone extensive optimization to improve performance, memory efficiency, and reliability:
-
-### 🔍 Performance Improvements
-
-1. **Document Caching**
-
-   - Multi-strategy caching system with TTL and LRU caches
-   - Intelligent cache selection based on document characteristics
-   - Up to 99.99% performance improvement for repeated operations
-   - Memory-sensitive caching for large documents
-
-2. **Memory Optimization**
-   - Memory-mapped file access for large PDFs
-   - Batch processing to control memory footprint
-   - Explicit garbage collection at strategic points
-   - Memory profiling tools for identifying leaks
-   - Reduced peak memory usage by up to 60%
-3. **Specialized Document Processing**
-
-   - PyMuPDF integration for faster PDF processing
-   - Mammoth integration for better DOCX structure preservation
-   - Enhanced PPTX slide processing
-   - Automatic selection of optimal extraction methods
-
-4. **Streaming and Lazy Loading**
-   - Incremental document processing for large files
-   - On-demand page loading to reduce memory usage
-   - Optimized file I/O with buffering
-
-### 📊 Performance Benchmark Results
-
-Our comprehensive testing shows dramatic improvements:
-
-#### Document Cache Performance
-
-| Document Type | Strategy  | First Run | Cached Run | Improvement |
-| ------------- | --------- | --------- | ---------- | ----------- |
-| PDF           | semantic  | 7.65s     | 0.51ms     | 99.99%      |
-| PDF           | paragraph | 320.59ms  | 0.19ms     | 99.94%      |
-| PDF           | fixed     | 194.58ms  | 0.19ms     | 99.90%      |
-| DOCX          | paragraph | 23.22ms   | 0.10ms     | 99.56%      |
-| DOCX          | fixed     | 14.73ms   | 0.11ms     | 99.25%      |
-| PPTX          | paragraph | 61.40ms   | 15.63ms    | 74.54%      |
-
-#### Memory Usage Improvement
-
-| Document Type | Optimization     | Before  | After  | Reduction |
-| ------------- | ---------------- | ------- | ------ | --------- |
-| Large PDF     | Memory Mapping   | 112.5MB | 42.8MB | 62.0%     |
-| Large PDF     | Batch Processing | 86.5MB  | 34.8MB | 59.8%     |
-| DOCX          | Structured Ext.  | 24.3MB  | 18.7MB | 23.0%     |
-
-### 🔧 Codebase Improvements
-
-1. **Error Handling**
-
-   - Graceful fallbacks for missing dependencies
-   - Detailed error tracking and logging
-   - Automatic recovery from corrupt documents
-   - Path-based error recovery
-
-2. **API Improvements**
-
-   - Simple interface for accessing optimized functionality
-   - Backward compatible with existing code
-   - Progressive enhancement based on available optimizations
-   - Configuration options for fine-tuning behavior
-
-3. **Testing Infrastructure**
-   - Comprehensive performance benchmarking
-   - Memory profiling tools
-   - Document processing validation
 
 ### 🚀 Recommended Usage
 
