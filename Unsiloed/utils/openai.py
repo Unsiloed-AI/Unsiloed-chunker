@@ -14,6 +14,7 @@ import hashlib
 import threading
 from collections import OrderedDict
 import time
+import re
 
 load_dotenv()
 
@@ -195,7 +196,7 @@ def create_extraction_prompt(schema: Dict[str, Any], page_count: int) -> str:
 
 def semantic_chunk_with_structured_output(text: str) -> List[Dict[str, Any]]:
     """
-    Use OpenAI API to create semantic chunks from text using JSON mode.
+    Use OpenAI API to create semantic chunks from text.
     Optimized with caching, parallel processing, and retry logic.
     """
     # Generate hash for caching
@@ -213,7 +214,7 @@ def semantic_chunk_with_structured_output(text: str) -> List[Dict[str, Any]]:
         return process_long_text_semantically(text)
 
     max_retries = 2
-    retry_delay = 1.0  # seconds
+    retry_delay = 1.0
     
     for attempt in range(max_retries):
         try:
@@ -222,150 +223,198 @@ def semantic_chunk_with_structured_output(text: str) -> List[Dict[str, Any]]:
             if not openai_client:
                 raise ValueError("Failed to initialize OpenAI client")
 
-            # Create a prompt for the OpenAI model with JSON mode
-            response = openai_client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an expert at analyzing and dividing text into meaningful semantic chunks. Your output should be valid JSON.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"""Please analyze the following text and divide it into logical semantic chunks. 
-                        Each chunk should represent a cohesive unit of information or a distinct section.
-                        
-                        Return your results as a JSON object with this structure:
-                        {{
-                            "chunks": [
-                                {{
-                                    "text": "the text of the chunk",
-                                    "title": "a descriptive title for this chunk",
-                                    "position": "beginning/middle/end"
-                                }},
-                                ...
-                            ]
-                        }}
-                        
-                        Text to chunk:
-                        
-                        {text}""",
-                    },
-                ],
-                max_tokens=4000,
-                temperature=0.1,
-                response_format={"type": "json_object"},
-            )
-
-            # Parse the response
-            result = json.loads(response.choices[0].message.content)
+            # Split text into sections first
+            sections = []
+            current_section = []
+            lines = text.split('. ')
             
-            # Validate response structure
-            if not isinstance(result, dict) or "chunks" not in result:
-                raise ValueError("Invalid response structure from OpenAI")
+            for line in lines:
+                # Check if line starts with a numbered heading (e.g., "6.1", "6.2", etc.)
+                if re.match(r'^\d+\.\d+\s+[A-Z]', line):
+                    if current_section:
+                        sections.append('. '.join(current_section) + '.')
+                    current_section = [line]
+                else:
+                    current_section.append(line)
             
-            # Cache the response
-            cache_openai_response(text_hash, "semantic_chunk", json.dumps(result))
+            # Add the last section
+            if current_section:
+                sections.append('. '.join(current_section) + '.')
 
-            # Convert the response to our standard chunk format
-            chunks = []
+            # Process each section separately
+            all_chunks = []
             current_position = 0
 
-            for i, chunk_data in enumerate(result.get("chunks", [])):
-                chunk_text = chunk_data.get("text", "")
-                if not chunk_text:  # Skip empty chunks
-                    continue
+            for section in sections:
+                # Split section into paragraphs and bullet points
+                paragraphs = []
+                current_paragraph = []
+                bullet_points = []
+                current_bullet = []
+                
+                # First, identify section heading
+                section_match = re.match(r'^(\d+\.\d+\s+[A-Z].*?)(?=\s|$)', section)
+                section_heading = section_match.group(1) if section_match else ""
+                
+                # Process the rest of the section
+                remaining_text = section[len(section_heading):].strip() if section_heading else section
+                
+                # Split into lines while preserving bullet points
+                lines = []
+                for line in remaining_text.split('. '):
+                    if line.strip().startswith('●'):
+                        if current_paragraph:
+                            lines.append('. '.join(current_paragraph) + '.')
+                            current_paragraph = []
+                        lines.append(line)
+                    else:
+                        current_paragraph.append(line)
+                        if len(' '.join(current_paragraph)) > 200:  # Split long paragraphs
+                            lines.append('. '.join(current_paragraph) + '.')
+                            current_paragraph = []
+                
+                # Add any remaining paragraph
+                if current_paragraph:
+                    lines.append('. '.join(current_paragraph) + '.')
+
+                # Process lines into chunks
+                current_chunk = []
+                for line in lines:
+                    if line.strip().startswith('●'):
+                        # If we have a current chunk, add it to paragraphs
+                        if current_chunk:
+                            paragraphs.append(' '.join(current_chunk))
+                            current_chunk = []
+                        # Start a new bullet point chunk
+                        current_chunk = [line]
+                    else:
+                        current_chunk.append(line)
+                        if len(' '.join(current_chunk)) > 200:  # Split long chunks
+                            paragraphs.append(' '.join(current_chunk))
+                            current_chunk = []
+                
+                # Add any remaining chunk
+                if current_chunk:
+                    paragraphs.append(' '.join(current_chunk))
+
+                # Add section heading to first chunk
+                if section_heading:
+                    if paragraphs:
+                        paragraphs[0] = section_heading + ' ' + paragraphs[0]
+                    else:
+                        paragraphs.append(section_heading + '.')
+
+                # Process each paragraph
+                for chunk_text in paragraphs:
+                    # Skip empty chunks or chunks that are too short
+                    if not chunk_text or len(chunk_text) < 20:
+                        continue
                     
-                # Find the chunk in the original text to get accurate character positions
-                start_position = text.find(chunk_text, current_position)
-                if start_position == -1:
-                    # If exact match not found, use approximate position
-                    start_position = current_position
+                    # Ensure chunk ends with proper sentence boundary
+                    if not any(chunk_text.rstrip().endswith(p) for p in ['.', '!', '?']):
+                        continue
+                        
+                    # Find the chunk in the original text to get accurate character positions
+                    start_position = text.find(chunk_text, current_position)
+                    if start_position == -1:
+                        # If exact match not found, use approximate position
+                        start_position = current_position
 
-                end_position = start_position + len(chunk_text)
+                    end_position = start_position + len(chunk_text)
 
-                chunks.append(
-                    {
-                        "text": chunk_text,
-                        "metadata": {
-                            "title": chunk_data.get("title", f"Chunk {i + 1}"),
-                            "position": chunk_data.get("position", "unknown"),
-                            "start_char": start_position,
-                            "end_char": end_position,
-                            "strategy": "semantic",
-                        },
-                    }
-                )
+                    all_chunks.append(
+                        {
+                            "text": chunk_text,
+                            "metadata": {
+                                "title": f"Chunk {len(all_chunks) + 1}",
+                                "position": "middle",
+                                "start_char": start_position,
+                                "end_char": end_position,
+                                "strategy": "semantic",
+                            },
+                        }
+                    )
 
-                current_position = end_position
+                    current_position = end_position
 
-            return chunks
+            # Cache the response
+            cache_openai_response(text_hash, "semantic_chunk", json.dumps({"chunks": all_chunks}))
+
+            # Sort chunks by start position
+            all_chunks.sort(key=lambda x: x["metadata"]["start_char"])
+
+            # Merge small chunks with adjacent chunks, but only if they're related
+            if len(all_chunks) > 1:
+                merged_chunks = []
+                current_chunk = all_chunks[0]
+                
+                for next_chunk in all_chunks[1:]:
+                    # Only merge if chunks are small and related
+                    if (len(current_chunk["text"]) < 100 and len(next_chunk["text"]) < 100 and
+                        current_chunk["metadata"]["end_char"] == next_chunk["metadata"]["start_char"]):
+                        # Merge chunks with proper spacing
+                        current_chunk["text"] = current_chunk["text"].rstrip() + " " + next_chunk["text"].lstrip()
+                        current_chunk["metadata"]["end_char"] = next_chunk["metadata"]["end_char"]
+                    else:
+                        merged_chunks.append(current_chunk)
+                        current_chunk = next_chunk
+                
+                merged_chunks.append(current_chunk)
+                all_chunks = merged_chunks
+
+            return all_chunks
 
         except Exception as e:
             logger.error(f"Error in semantic chunking (attempt {attempt + 1}/{max_retries}): {str(e)}")
             if attempt < max_retries - 1:
                 time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
                 continue
-            # Fall back to paragraph chunking if all retries fail
-            logger.info("All retries failed, falling back to paragraph chunking")
-            # Import here to avoid circular import
-            from Unsiloed.utils.chunking import paragraph_chunking
-            return paragraph_chunking(text)
+            # Instead of falling back to paragraph chunking, raise the error
+            raise ValueError(f"Failed to process text after {max_retries} attempts: {str(e)}")
 
 def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
     """
-    Process long text by splitting into smaller chunks and processing in parallel.
-    Optimized for better performance with improved chunk management.
+    Process long text by splitting into sections and processing each section separately.
+    Optimized for better performance with improved section management.
     """
-    # Calculate optimal chunk size based on text length
-    text_length = len(text)
-    optimal_chunk_size = min(20000, max(10000, text_length // 10))
+    # Split text into sections based on numbered headings
+    sections = []
+    current_section = []
+    lines = text.split('. ')
     
-    # Split text into overlapping chunks for better context
-    chunks = []
-    overlap = 1000  # Overlap size for context preservation
+    for line in lines:
+        # Check if line starts with a numbered heading (e.g., "6.1", "6.2", etc.)
+        if re.match(r'^\d+\.\d+\s+[A-Z]', line):
+            if current_section:
+                sections.append('. '.join(current_section) + '.')
+            current_section = [line]
+        else:
+            current_section.append(line)
     
-    for i in range(0, text_length, optimal_chunk_size - overlap):
-        end = min(i + optimal_chunk_size, text_length)
-        chunk = text[i:end]
-        chunks.append((i, chunk))
+    # Add the last section
+    if current_section:
+        sections.append('. '.join(current_section) + '.')
     
-    # Process chunks in parallel with optimal worker count
-    max_workers = min(len(chunks), 4)  # Limit to 4 workers
+    # Process each section separately
     results = []
+    current_position = 0
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Create a future for each chunk
-        future_to_chunk = {
-            executor.submit(semantic_chunk_with_structured_output, chunk): (start_pos, chunk)
-            for start_pos, chunk in chunks
-        }
+    for section in sections:
+        # Process each section with semantic chunking
+        section_chunks = semantic_chunk_with_structured_output(section)
         
-        # Process results as they complete
-        for future in concurrent.futures.as_completed(future_to_chunk):
-            start_pos, _ = future_to_chunk[future]
-            try:
-                chunk_results = future.result()
-                # Adjust positions to be relative to the full text
-                for chunk in chunk_results:
-                    chunk["metadata"]["start_char"] += start_pos
-                    chunk["metadata"]["end_char"] += start_pos
-                results.extend(chunk_results)
-            except Exception as e:
-                logger.error(f"Error processing chunk at position {start_pos}: {str(e)}")
-                # Fall back to paragraph chunking for this chunk
-                # Import here to avoid circular import
-                from Unsiloed.utils.chunking import paragraph_chunking
-                fallback_chunk = paragraph_chunking(chunks[start_pos][1])
-                for chunk in fallback_chunk:
-                    chunk["metadata"]["start_char"] += start_pos
-                    chunk["metadata"]["end_char"] += start_pos
-                results.extend(fallback_chunk)
+        # Adjust positions to be relative to the full text
+        for chunk in section_chunks:
+            chunk["metadata"]["start_char"] += current_position
+            chunk["metadata"]["end_char"] += current_position
+            results.append(chunk)
+        
+        current_position += len(section)
     
     # Sort chunks by start position
     results.sort(key=lambda x: x["metadata"]["start_char"])
     
-    # Merge overlapping chunks more efficiently
+    # Merge overlapping chunks more efficiently, but never merge across section boundaries
     if not results:
         return []
         
@@ -374,19 +423,28 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
     for chunk in results[1:]:
         prev_chunk = merged_chunks[-1]
         
-        # Check for overlap
-        if chunk["metadata"]["start_char"] <= prev_chunk["metadata"]["end_char"]:
-            # Calculate overlap size
-            overlap_size = prev_chunk["metadata"]["end_char"] - chunk["metadata"]["start_char"]
-            
-            # Only merge if overlap is significant (more than 50% of the smaller chunk)
-            if overlap_size > min(len(prev_chunk["text"]), len(chunk["text"])) * 0.5:
-                # Merge chunks with proper spacing
-                prev_chunk["text"] = prev_chunk["text"].rstrip() + "\n" + chunk["text"].lstrip()
-                prev_chunk["metadata"]["end_char"] = chunk["metadata"]["end_char"]
+        # Check if chunks are from the same section
+        prev_section = re.search(r'^\d+\.\d+\s+[A-Z]', prev_chunk["text"])
+        curr_section = re.search(r'^\d+\.\d+\s+[A-Z]', chunk["text"])
+        
+        # Only merge if chunks are from the same section
+        if prev_section and curr_section and prev_section.group() == curr_section.group():
+            # Check for overlap
+            if chunk["metadata"]["start_char"] <= prev_chunk["metadata"]["end_char"]:
+                # Calculate overlap size
+                overlap_size = prev_chunk["metadata"]["end_char"] - chunk["metadata"]["start_char"]
+                
+                # Only merge if overlap is significant (more than 50% of the smaller chunk)
+                if overlap_size > min(len(prev_chunk["text"]), len(chunk["text"])) * 0.5:
+                    # Merge chunks with proper spacing
+                    prev_chunk["text"] = prev_chunk["text"].rstrip() + "\n" + chunk["text"].lstrip()
+                    prev_chunk["metadata"]["end_char"] = chunk["metadata"]["end_char"]
+                else:
+                    merged_chunks.append(chunk)
             else:
                 merged_chunks.append(chunk)
         else:
+            # If chunks are from different sections, don't merge them
             merged_chunks.append(chunk)
     
     return merged_chunks
@@ -419,6 +477,19 @@ def extract_text_from_pdf(pdf_path: str) -> str:
                             page = reader.pages[i]
                             text = page.extract_text()
                             if text and text.strip():  # Only store non-empty text
+                                # Clean up the text
+                                text = text.replace('\n', ' ')  # Replace newlines with spaces
+                                text = ' '.join(text.split())  # Normalize whitespace
+                                # Fix common sentence boundary issues
+                                text = text.replace(' .', '.').replace(' ,', ',')
+                                text = text.replace('  ', ' ')
+                                # Ensure proper spacing after sentence endings
+                                text = text.replace('.', '. ').replace('!', '! ').replace('?', '? ')
+                                # Fix encoding issues
+                                text = text.encode('ascii', 'ignore').decode('ascii')
+                                # Fix bullet points
+                                text = text.replace('•', '●').replace('·', '●')
+                                text = ' '.join(text.split())  # Normalize again after fixes
                                 results.append((i, text))
                         return results
                     except Exception as e:
@@ -437,7 +508,15 @@ def extract_text_from_pdf(pdf_path: str) -> str:
                         text_chunks[page_idx] = text
         
         # Join all text chunks with proper spacing, filtering out None values
-        return "\n\n".join(chunk for chunk in text_chunks if chunk)
+        full_text = " ".join(chunk for chunk in text_chunks if chunk)
+        
+        # Final cleanup of the text
+        full_text = ' '.join(full_text.split())  # Normalize whitespace
+        full_text = full_text.replace(' .', '.').replace(' ,', ',')  # Fix common spacing issues
+        full_text = full_text.replace('  ', ' ')  # Remove double spaces
+        full_text = full_text.encode('ascii', 'ignore').decode('ascii')  # Fix encoding issues
+        
+        return full_text
         
     except Exception as e:
         logger.error(f"Error extracting text from PDF: {str(e)}")
