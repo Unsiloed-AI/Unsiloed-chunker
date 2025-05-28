@@ -9,6 +9,11 @@ from Unsiloed.utils.openai import (
     extract_text_from_pdf,
     extract_text_from_docx,
     extract_text_from_pptx,
+    extract_text_from_doc,
+    extract_text_from_excel,
+    extract_text_from_opendocument,
+    extract_text_from_text_file,
+    extract_text_from_epub,
 )
 
 import logging
@@ -24,11 +29,11 @@ def process_document_chunking(
     overlap=100,
 ):
     """
-    Process a document file (PDF, DOCX, PPTX) with the specified chunking strategy.
+    Process a document file with the specified chunking strategy.
 
     Args:
         file_path: Path to the document file
-        file_type: Type of document (pdf, docx, pptx)
+        file_type: Type of document (pdf, docx, pptx, doc, excel, opendocument, text, epub)
         strategy: Chunking strategy to use
         chunk_size: Size of chunks for fixed strategy
         overlap: Overlap size for fixed strategy
@@ -51,6 +56,21 @@ def process_document_chunking(
             text = extract_text_from_docx(file_path)
         elif file_type == "pptx":
             text = extract_text_from_pptx(file_path)
+        elif file_type == "doc":
+            text = extract_text_from_doc(file_path)
+        elif file_type == "excel":
+            text = extract_text_from_excel(file_path)
+            # For Excel files with semantic strategy, we'll use paragraph chunking
+            # as it's more reliable for tabular data
+            if strategy == "semantic":
+                logger.info("Using paragraph chunking for Excel file instead of semantic chunking")
+                strategy = "paragraph"
+        elif file_type == "opendocument":
+            text = extract_text_from_opendocument(file_path)
+        elif file_type == "text":
+            text = extract_text_from_text_file(file_path)
+        elif file_type == "epub":
+            text = extract_text_from_epub(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
 
