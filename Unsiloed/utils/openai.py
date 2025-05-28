@@ -9,6 +9,9 @@ import PyPDF2
 from dotenv import load_dotenv
 import numpy as np
 import cv2
+import pandas as pd
+
+import numpy as np
 
 load_dotenv()
 
@@ -484,4 +487,333 @@ def extract_text_from_pptx(pptx_path: str) -> str:
         return "\n\n".join(full_text)
     except Exception as e:
         logger.error(f"Error extracting text from PPTX: {str(e)}")
+        raise
+
+
+def extract_text_from_doc(doc_path: str) -> str:
+    """
+    Extract text from a legacy DOC file.
+
+    Args:
+        doc_path: Path to the DOC file
+
+    Returns:
+        Extracted text from the DOC file
+    """
+    try:
+        import textract
+        import subprocess
+        import sys
+
+        # Check if antiword is installed
+        try:
+            subprocess.run(["antiword", "--version"], capture_output=True, check=True)
+        except (subprocess.SubprocessError, FileNotFoundError):
+            logger.error("antiword is not installed. Please install it first.")
+            if sys.platform == "win32":
+                logger.error(
+                    "For Windows: Download and install antiword from http://www.winfield.demon.nl/"
+                )
+            else:
+                logger.error("For Linux/Mac: Use package manager to install antiword")
+            raise RuntimeError(
+                "antiword is required for DOC file processing but is not installed"
+            )
+
+        # Extract text using textract with antiword method
+        text = textract.process(doc_path, method="antiword").decode("utf-8")
+        return text
+
+    except Exception as e:
+        logger.error(f"Error extracting text from DOC: {str(e)}")
+        raise
+
+
+def extract_text_from_xlsx(xlsx_path: str) -> str:
+    """
+    Extract text from an XLSX file.
+
+    Args:
+        xlsx_path: Path to the XLSX file
+
+    Returns:
+        Extracted text from the XLSX file
+    """
+    try:
+        text = []
+        # Use context manager to ensure file is properly closed
+        with pd.ExcelFile(xlsx_path) as xls:
+            for sheet_name in xls.sheet_names:
+                # Read each sheet
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+
+                # Handle empty sheets
+                if df.empty:
+                    text.append(f"Sheet: {sheet_name} (Empty)")
+                    continue
+
+                # Convert NaN values to empty strings
+                df = df.replace({np.nan: ""})
+
+                # Add sheet header
+                text.append(f"Sheet: {sheet_name}")
+
+                # Convert DataFrame to string with proper formatting
+                text.append(df.to_string(index=False))
+                text.append("\n")
+
+        return "\n".join(text)
+
+    except Exception as e:
+        logger.error(f"Error extracting text from XLSX: {str(e)}")
+        raise
+
+
+def extract_text_from_xls(xls_path: str) -> str:
+    """
+    Extract text from a legacy XLS file.
+
+    Args:
+        xls_path: Path to the XLS file
+
+    Returns:
+        Extracted text from the XLS file
+    """
+    try:
+        import pandas as pd
+        import numpy as np
+
+        text = []
+        xls = pd.ExcelFile(xls_path)
+
+        for sheet_name in xls.sheet_names:
+            df = pd.read_excel(xls_path, sheet_name=sheet_name, engine="xlrd")
+
+            # Handle empty sheets
+            if df.empty:
+                text.append(f"Sheet: {sheet_name} (Empty)")
+                continue
+
+            # Convert NaN values to empty strings
+            df = df.replace({np.nan: ""})
+
+            # Add sheet header
+            text.append(f"Sheet: {sheet_name}")
+
+            # Convert DataFrame to string with proper formatting
+            text.append(df.to_string(index=False))
+            text.append("\n")
+
+        return "\n".join(text)
+
+    except Exception as e:
+        logger.error(f"Error extracting text from XLS: {str(e)}")
+        raise
+
+
+def extract_text_from_odt(odt_path: str) -> str:
+    """
+    Extract text from an ODT file.
+
+    Args:
+        odt_path: Path to the ODT file
+
+    Returns:
+        Extracted text from the ODT file
+    """
+    try:
+        from odf import text, teletype
+        from odf.opendocument import load
+
+        # Load the ODT document
+        doc = load(odt_path)
+
+        # Extract text from paragraphs
+        paragraphs = []
+        for para in doc.getElementsByType(text.P):
+            paragraphs.append(teletype.extractText(para))
+
+        # Join paragraphs with newlines
+        return "\n\n".join(paragraphs)
+
+    except Exception as e:
+        logger.error(f"Error extracting text from ODT: {str(e)}")
+        raise
+
+
+def extract_text_from_ods(ods_path: str) -> str:
+    """
+    Extract text from an ODS file.
+
+    Args:
+        ods_path: Path to the ODS file
+
+    Returns:
+        Extracted text from the ODS file
+    """
+    try:
+        import pandas as pd
+        import numpy as np
+
+        text = []
+        # Read ODS file using pandas with odf engine
+        df = pd.read_excel(ods_path, engine="odf")
+
+        # Handle empty sheets
+        if df.empty:
+            return "Empty spreadsheet"
+
+        # Convert NaN values to empty strings
+        df = df.replace({np.nan: ""})
+
+        # Convert DataFrame to string with proper formatting
+        text.append(df.to_string(index=False))
+
+        return "\n".join(text)
+
+    except Exception as e:
+        logger.error(f"Error extracting text from ODS: {str(e)}")
+        raise
+
+
+def extract_text_from_odp(odp_path: str) -> str:
+    """
+    Extract text from an ODP file.
+
+    Args:
+        odp_path: Path to the ODP file
+
+    Returns:
+        Extracted text from the ODP file
+    """
+    try:
+        from odf import text, teletype, draw
+        from odf.opendocument import load
+
+        # Load the ODP document
+        doc = load(odp_path)
+
+        # Extract text from slides
+        slides = []
+        for slide in doc.getElementsByType(draw.Page):
+            slide_text = []
+
+            # Extract text from paragraphs
+            for para in slide.getElementsByType(text.P):
+                slide_text.append(teletype.extractText(para))
+
+            # Extract text from text boxes
+            for textbox in slide.getElementsByType(draw.TextBox):
+                for para in textbox.getElementsByType(text.P):
+                    slide_text.append(teletype.extractText(para))
+
+            if slide_text:
+                slides.append("\n".join(slide_text))
+
+        # Join slides with double newlines
+        return "\n\n".join(slides)
+
+    except Exception as e:
+        logger.error(f"Error extracting text from ODP: {str(e)}")
+        raise
+
+
+def extract_text_from_txt(txt_path: str) -> str:
+    """
+    Extract text from a TXT file.
+
+    Args:
+        txt_path: Path to the TXT file
+
+    Returns:
+        Extracted text from the TXT file
+    """
+    try:
+        # Try UTF-8 first
+        try:
+            with open(txt_path, "r", encoding="utf-8") as file:
+                return file.read()
+        except UnicodeDecodeError:
+            # Fall back to Latin-1 if UTF-8 fails
+            with open(txt_path, "r", encoding="latin-1") as file:
+                return file.read()
+
+    except Exception as e:
+        logger.error(f"Error extracting text from TXT: {str(e)}")
+        raise
+
+
+def extract_text_from_rtf(rtf_path: str) -> str:
+    """
+    Extract text from an RTF file.
+
+    Args:
+        rtf_path: Path to the RTF file
+
+    Returns:
+        Extracted text from the RTF file
+    """
+    try:
+        import striprtf
+        from striprtf.striprtf import rtf_to_text
+
+        # Read the RTF file
+        with open(rtf_path, "r", encoding="utf-8", errors="ignore") as file:
+            rtf_content = file.read()
+
+        # Convert RTF to plain text
+        text = rtf_to_text(rtf_content)
+
+        # Clean up the text
+        # Remove multiple newlines
+        text = "\n".join(line for line in text.splitlines() if line.strip())
+
+        return text
+
+    except Exception as e:
+        logger.error(f"Error extracting text from RTF: {str(e)}")
+        raise
+
+
+def extract_text_from_epub(epub_path: str) -> str:
+    """
+    Extract text from an EPUB file.
+
+    Args:
+        epub_path: Path to the EPUB file
+
+    Returns:
+        Extracted text from the EPUB file
+    """
+    try:
+        import ebooklib
+        from ebooklib import epub
+        from bs4 import BeautifulSoup
+        import re
+
+        book = epub.read_epub(epub_path)
+        text = []
+
+        # Process each document in the EPUB
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                # Parse HTML content
+                soup = BeautifulSoup(item.get_content(), "html.parser")
+
+                # Remove script and style elements
+                for script in soup(["script", "style"]):
+                    script.decompose()
+
+                # Get text and clean it
+                content = soup.get_text()
+                # Remove extra whitespace
+                content = re.sub(r"\s+", " ", content).strip()
+
+                if content:
+                    text.append(content)
+
+        return "\n\n".join(text)
+
+    except Exception as e:
+        logger.error(f"Error extracting text from EPUB: {str(e)}")
         raise
