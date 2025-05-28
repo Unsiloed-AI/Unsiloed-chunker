@@ -1,3 +1,6 @@
+![Screenshot](logo.png)
+
+
 # 📄 Unsiloed AI Document Data extractor
 
 A super simple way to extract text from documents for  for intelligent document processing, extraction, and chunking with multi-threaded processing capabilities.
