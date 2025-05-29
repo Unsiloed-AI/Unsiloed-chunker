@@ -255,6 +255,7 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
     """
     Process a long text by breaking it into smaller pieces and chunking each piece semantically.
     Uses parallel processing and JSON mode for better performance.
+    Also ensures character offsets are relative to the original full text.
 
     Args:
         text: The long text to process
@@ -262,23 +263,26 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
     Returns:
         List of semantic chunks
     """
-    # Create chunks of 25000 characters with 500 character overlap
-    text_chunks = []
+    # Create chunks of 25000 characters with 500 character overlap, storing original offsets
+    text_chunks_with_offsets = []
     chunk_size = 25000
     overlap = 500
-    start = 0
+    original_text_current_offset = 0
     text_length = len(text)
 
-    while start < text_length:
-        end = min(start + chunk_size, text_length)
-        text_chunks.append(text[start:end])
-        start = end - overlap if end < text_length else text_length
+    while original_text_current_offset < text_length:
+        end = min(original_text_current_offset + chunk_size, text_length)
+        text_segment_for_chunk = text[original_text_current_offset:end]
+        text_chunks_with_offsets.append((original_text_current_offset, text_segment_for_chunk))
+        original_text_current_offset = end - overlap if end < text_length else text_length
 
     # Process each chunk in parallel
     all_semantic_chunks = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
         # Define a worker function
-        def process_chunk(chunk_text):
+        def process_chunk(chunk_data_tuple):
+            original_offset_for_this_segment, text_content_of_this_segment = chunk_data_tuple
+
             try:
                 # Get the OpenAI client
                 openai_client = get_openai_client()
@@ -310,7 +314,7 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
                             
                             Text to chunk:
                             
-                            {chunk_text}""",
+                            {text_content_of_this_segment}""",
                         },
                     ],
                     max_tokens=4000,
@@ -323,31 +327,31 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
 
                 # Convert the response to our standard chunk format
                 sub_chunks = []
-                current_position = 0
+                current_position_within_segment = 0
 
-                for i, chunk_data in enumerate(result.get("chunks", [])):
-                    chunk_text = chunk_data.get("text", "")
-                    # Find position in the original chunk
-                    start_position = chunk_text.find(chunk_text, current_position)
-                    if start_position == -1:
-                        start_position = current_position
+                for i, llm_output_item in enumerate(result.get("chunks", [])):
+                    processed_chunk_text = llm_output_item.get("text", "")
+                    
+                    local_start_char_in_segment = text_content_of_this_segment.find(processed_chunk_text, current_position_within_segment)
+                    if local_start_char_in_segment == -1: # Fallback if not found
+                        local_start_char_in_segment = current_position_within_segment
 
-                    end_position = start_position + len(chunk_text)
+                    local_end_char_in_segment = local_start_char_in_segment + len(processed_chunk_text)
 
                     sub_chunks.append(
                         {
-                            "text": chunk_text,
+                            "text": processed_chunk_text,
                             "metadata": {
-                                "title": chunk_data.get("title", f"Subchunk {i + 1}"),
-                                "position": chunk_data.get("position", "unknown"),
-                                "start_char": start_position,
-                                "end_char": end_position,
+                                "title": llm_output_item.get("title", f"Subchunk {i + 1}"),
+                                "position": llm_output_item.get("position", "unknown"),
+                                # Adjust to be relative to the original full text
+                                "start_char": original_offset_for_this_segment + local_start_char_in_segment,
+                                "end_char": original_offset_for_this_segment + local_end_char_in_segment,
                                 "strategy": "semantic",
                             },
                         }
                     )
-
-                    current_position = end_position
+                    current_position_within_segment = local_end_char_in_segment
 
                 return sub_chunks
             except Exception as e:
@@ -357,7 +361,7 @@ def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
                 return []
 
         # Submit all tasks and gather results
-        futures = [executor.submit(process_chunk, chunk) for chunk in text_chunks]
+        futures = [executor.submit(process_chunk, chunk_tuple) for chunk_tuple in text_chunks_with_offsets]
         for future in concurrent.futures.as_completed(futures):
             all_semantic_chunks.extend(future.result())
 
