@@ -35,9 +35,19 @@ setup(
         "opencv-python-headless",
         "requests",
     ],
+    extras_require={
+        "all": [
+            "anthropic",
+            "llama-cpp-python",
+            "huggingface_hub",
+        ],
+        "anthropic": ["anthropic"],
+        "local": ["llama-cpp-python"],
+        "huggingface": ["huggingface_hub"],
+    },
     entry_points={
         "console_scripts": [
             "Unsiloed=Unsiloed.cli:main",
         ],
     },
-) 
+)

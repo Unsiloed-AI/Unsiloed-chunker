@@ -8,42 +8,60 @@ from Unsiloed.utils.chunking import ChunkingStrategy
 async def process(options):
     """
     Process a document file with OCR and chunking capabilities.
-    
+
     Args:
         options (dict): A dictionary with the following keys:
             - filePath (str): URL or local path to the document
-            - credentials (dict): containing apiKey for OpenAI
+            - credentials (dict): containing API keys for model providers
+            - modelProvider (str, optional): Model provider to use (default: from config)
             - strategy (str, optional): Chunking strategy to use (default: "semantic")
             - chunkSize (int, optional): Size of chunks (default: 1000)
             - overlap (int, optional): Overlap size (default: 100)
-    
+
     Returns:
         dict: A dictionary containing the processed chunks and metadata
     """
-    # Set the OpenAI API key from credentials
-    if "credentials" in options and "apiKey" in options["credentials"]:
-        os.environ["OPENAI_API_KEY"] = options["credentials"]["apiKey"]
-    
+    # Set API keys from credentials
+    if "credentials" in options:
+        credentials = options["credentials"]
+
+        # Set OpenAI API key if provided
+        if "apiKey" in credentials:
+            os.environ["OPENAI_API_KEY"] = credentials["apiKey"]
+
+        # Set Anthropic API key if provided
+        if "anthropicApiKey" in credentials:
+            os.environ["ANTHROPIC_API_KEY"] = credentials["anthropicApiKey"]
+
+        # Set Hugging Face API key if provided
+        if "huggingfaceApiKey" in credentials:
+            os.environ["HUGGINGFACE_API_KEY"] = credentials["huggingfaceApiKey"]
+
+        # Set local model path if provided
+        if "localModelPath" in credentials:
+            os.environ["LOCAL_MODEL_PATH"] = credentials["localModelPath"]
+
     # Get file path
     file_path = options.get("filePath")
     if not file_path:
         raise ValueError("filePath is required")
-    
+
     # Get chunking options
     strategy = options.get("strategy", "semantic")
     chunk_size = options.get("chunkSize", 1000)
     overlap = options.get("overlap", 100)
-    
+    model_provider = options.get("modelProvider")
+
     # Handle URLs by downloading the file
     temp_file = None
     local_file_path = file_path
-    
+
     try:
         if file_path.startswith(("http://", "https://")):
             # Download the file to a temporary location
             response = requests.get(file_path)
             response.raise_for_status()
-            
+
             # Determine file type from URL
             if file_path.lower().endswith(".pdf"):
                 file_type = "pdf"
@@ -56,7 +74,7 @@ async def process(options):
                 suffix = ".pptx"
             else:
                 raise ValueError("Unsupported file type. Only PDF, DOCX, and PPTX are supported.")
-                
+
             # Save to temporary file
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
             temp_file.write(response.content)
@@ -72,18 +90,19 @@ async def process(options):
                 file_type = "pptx"
             else:
                 raise ValueError("Unsupported file type. Only PDF, DOCX, and PPTX are supported.")
-        
+
         # Process the document
         result = process_document_chunking(
-            local_file_path, 
+            local_file_path,
             file_type,
             strategy,
             chunk_size,
-            overlap
+            overlap,
+            model_provider
         )
-        
+
         return result
-        
+
     finally:
         # Clean up temporary file if created
         if temp_file and os.path.exists(local_file_path):
