@@ -1,10 +1,9 @@
 import concurrent.futures
-from typing import Literal
+from typing import Literal, Dict, Any, List
 import logging
 import PyPDF2
-from Unsiloed.utils.openai import (
-    semantic_chunk_with_structured_output,
-)
+import json
+from Unsiloed.utils.model_providers import get_model_provider
 
 logger = logging.getLogger(__name__)
 
@@ -195,15 +194,87 @@ def heading_chunking(text):
     return chunks
 
 
-def semantic_chunking(text):
+def semantic_chunking(text: str, provider_type: str = "openai", **provider_kwargs) -> List[Dict[str, Any]]:
     """
-    Use OpenAI to identify semantic chunks in the text.
+    Use LLM to identify semantic chunks in the text.
 
     Args:
         text: The text to chunk
+        provider_type: Type of model provider to use (openai, anthropic, huggingface)
+        provider_kwargs: Additional arguments for the model provider
 
     Returns:
         List of chunks with metadata
     """
-    # Use the optimized semantic chunking with Structured Outputs
-    return semantic_chunk_with_structured_output(text)
+    try:
+        # Get the model provider
+        provider = get_model_provider(provider_type, **provider_kwargs)
+        
+        # Create a prompt for semantic chunking
+        system_prompt = """You are an expert at analyzing and dividing text into meaningful semantic chunks. 
+        Your output should be valid JSON."""
+        
+        prompt = f"""Please analyze the following text and divide it into logical semantic chunks. 
+        Each chunk should represent a cohesive unit of information or a distinct section.
+        
+        Return your results as a JSON object with this structure:
+        {{
+            "chunks": [
+                {{
+                    "text": "the text of the chunk",
+                    "title": "a descriptive title for this chunk",
+                    "position": "beginning/middle/end"
+                }},
+                ...
+            ]
+        }}
+        
+        Text to chunk:
+        
+        {text}"""
+        
+        # Get structured completion from the model
+        result = provider.get_structured_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            max_tokens=4000,
+            temperature=0.1
+        )
+        
+        # Parse the response
+        result = json.loads(result)
+        
+        # Convert the response to our standard chunk format
+        chunks = []
+        current_position = 0
+        
+        for i, chunk_data in enumerate(result.get("chunks", [])):
+            chunk_text = chunk_data.get("text", "")
+            # Find the chunk in the original text to get accurate character positions
+            start_position = text.find(chunk_text, current_position)
+            if start_position == -1:
+                # If exact match not found, use approximate position
+                start_position = current_position
+                
+            end_position = start_position + len(chunk_text)
+            
+            chunks.append({
+                "text": chunk_text,
+                "metadata": {
+                    "title": chunk_data.get("title", f"Chunk {i + 1}"),
+                    "position": chunk_data.get("position", "unknown"),
+                    "start_char": start_position,
+                    "end_char": end_position,
+                    "strategy": "semantic",
+                }
+            })
+            
+            current_position = end_position
+            
+        return chunks
+        
+    except Exception as e:
+        logger.error(f"Error in semantic chunking: {str(e)}")
+        # Fall back to paragraph chunking if semantic chunking fails
+        logger.info("Falling back to paragraph chunking")
+        return paragraph_chunking(text)
