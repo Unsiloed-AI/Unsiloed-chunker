@@ -34,6 +34,10 @@ setup(
         "numpy",
         "opencv-python-headless",
         "requests",
+        "textract",
+        "pandas",
+        "odfpy",
+        "ebooklib",
     ],
     entry_points={
         "console_scripts": [

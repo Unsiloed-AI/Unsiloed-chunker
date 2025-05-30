@@ -19,12 +19,26 @@ def read_root():
         "message": "Document Data Extractor API",
         "version": "2.1.0",
         "docs": "/docs",
+        "supported_file_types": [
+            "PDF",
+            "DOCX",
+            "DOC",
+            "PPTX",
+            "XLSX",
+            "XLS",
+            "ODT",
+            "ODS",
+            "ODP",
+            "TXT",
+            "RTF",
+            "EPUB"
+        ],
         "endpoints": [
             {"path": "/", "method": "GET", "description": "API information"},
             {
                 "path": "/document-chunking",
                 "method": "POST",
-                "description": "Chunk a document file (PDF, DOCX, PPTX) according to the specified strategy.",
+                "description": "Chunk a document file according to the specified strategy.",
             },
         ],
     }
