@@ -5,10 +5,19 @@ from Unsiloed.utils.chunking import (
     heading_chunking,
     semantic_chunking,
 )
-from Unsiloed.utils.openai import (
+from Unsiloed.utils.model_utils import (
     extract_text_from_pdf,
     extract_text_from_docx,
     extract_text_from_pptx,
+    extract_text_from_doc,
+    extract_text_from_xlsx,
+    extract_text_from_xls,
+    extract_text_from_odt,
+    extract_text_from_ods,
+    extract_text_from_odp,
+    extract_text_from_txt,
+    extract_text_from_rtf,
+    extract_text_from_epub,
 )
 
 import logging
@@ -22,22 +31,24 @@ def process_document_chunking(
     strategy,
     chunk_size=1000,
     overlap=100,
+    provider_name=None,
 ):
     """
-    Process a document file (PDF, DOCX, PPTX) with the specified chunking strategy.
+    Process a document file with the specified chunking strategy.
 
     Args:
         file_path: Path to the document file
-        file_type: Type of document (pdf, docx, pptx)
+        file_type: Type of document (pdf, docx, pptx, doc, xlsx, xls, odt, ods, odp, txt, rtf, epub)
         strategy: Chunking strategy to use
         chunk_size: Size of chunks for fixed strategy
         overlap: Overlap size for fixed strategy
+        provider_name: Name of the model provider to use (default: from config)
 
     Returns:
         Dictionary with chunking results
     """
     logger.info(
-        f"Processing {file_type.upper()} document with {strategy} chunking strategy"
+        f"Processing {file_type.upper()} document with {strategy} chunking strategy using provider: {provider_name or 'default'}"
     )
 
     # Handle page-based chunking for PDFs only
@@ -51,6 +62,24 @@ def process_document_chunking(
             text = extract_text_from_docx(file_path)
         elif file_type == "pptx":
             text = extract_text_from_pptx(file_path)
+        elif file_type == "doc":
+            text = extract_text_from_doc(file_path)
+        elif file_type == "xlsx":
+            text = extract_text_from_xlsx(file_path)
+        elif file_type == "xls":
+            text = extract_text_from_xls(file_path)
+        elif file_type == "odt":
+            text = extract_text_from_odt(file_path)
+        elif file_type == "ods":
+            text = extract_text_from_ods(file_path)
+        elif file_type == "odp":
+            text = extract_text_from_odp(file_path)
+        elif file_type == "txt":
+            text = extract_text_from_txt(file_path)
+        elif file_type == "rtf":
+            text = extract_text_from_rtf(file_path)
+        elif file_type == "epub":
+            text = extract_text_from_epub(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_type}")
 
@@ -58,7 +87,7 @@ def process_document_chunking(
         if strategy == "fixed":
             chunks = fixed_size_chunking(text, chunk_size, overlap)
         elif strategy == "semantic":
-            chunks = semantic_chunking(text)
+            chunks = semantic_chunking(text, provider_name)
         elif strategy == "paragraph":
             chunks = paragraph_chunking(text)
         elif strategy == "heading":
@@ -85,6 +114,7 @@ def process_document_chunking(
         "strategy": strategy,
         "total_chunks": total_chunks,
         "avg_chunk_size": avg_chunk_size,
+        "model_provider": provider_name or "default",
         "chunks": chunks,
     }
 
