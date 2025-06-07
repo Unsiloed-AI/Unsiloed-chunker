@@ -4,6 +4,7 @@ from Unsiloed.utils.chunking import (
     paragraph_chunking,
     heading_chunking,
     semantic_chunking,
+    chunks_to_markdown,
 )
 from Unsiloed.utils.openai import (
     extract_text_from_pdf,
@@ -22,6 +23,7 @@ def process_document_chunking(
     strategy,
     chunk_size=1000,
     overlap=100,
+    output_format="json",
 ):
     """
     Process a document file (PDF, DOCX, PPTX) with the specified chunking strategy.
@@ -32,9 +34,10 @@ def process_document_chunking(
         strategy: Chunking strategy to use
         chunk_size: Size of chunks for fixed strategy
         overlap: Overlap size for fixed strategy
+        output_format: Output format ("json" or "markdown")
 
     Returns:
-        Dictionary with chunking results
+        Dictionary with chunking results or Markdown string
     """
     logger.info(
         f"Processing {file_type.upper()} document with {strategy} chunking strategy"
@@ -80,12 +83,15 @@ def process_document_chunking(
         else 0
     )
 
-    result = {
-        "file_type": file_type,
-        "strategy": strategy,
-        "total_chunks": total_chunks,
-        "avg_chunk_size": avg_chunk_size,
-        "chunks": chunks,
-    }
-
-    return result
+    # Return in requested format
+    if output_format == "markdown":
+        return chunks_to_markdown(chunks)
+    else:
+        result = {
+            "file_type": file_type,
+            "strategy": strategy,
+            "total_chunks": total_chunks,
+            "avg_chunk_size": avg_chunk_size,
+            "chunks": chunks,
+        }
+        return result
