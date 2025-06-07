@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from Unsiloed.services.chunking import process_document_chunking
 from Unsiloed.utils.chunking import ChunkingStrategy
 import os
@@ -17,6 +17,7 @@ async def chunk_document(
     strategy: ChunkingStrategy = Form("semantic"),
     chunk_size: int = Form(1000),
     overlap: int = Form(100),
+    output_format: str = Form("json"),
 ):
     """
     Chunk a document file (PDF, DOCX, PPTX) according to the specified strategy.
@@ -26,12 +27,20 @@ async def chunk_document(
         strategy: Chunking strategy to use
         chunk_size: Size of chunks for fixed strategy (in characters)
         overlap: Overlap size for fixed strategy (in characters)
+        output_format: Output format ("json" or "markdown")
 
     Returns:
-        JSON response with chunks and metadata
+        JSON response with chunks and metadata, or Markdown text
     """
     logger.info(f"Received request for document chunking using {strategy} strategy")
     logger.debug(f"Document file name: {document_file.filename}")
+
+    # Validate output format
+    if output_format not in ["json", "markdown"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid output format. Supported formats are 'json' and 'markdown'",
+        )
 
     # Check file type from filename
     file_name = document_file.filename.lower()
@@ -50,7 +59,7 @@ async def chunk_document(
             detail="Unsupported file type. Only PDF, DOCX, and PPTX are supported.",
         )
 
-    file_path = None  # Initialize file_path
+    file_path = None
     try:
         # Read file content
         file_content = await document_file.read()
@@ -63,11 +72,16 @@ async def chunk_document(
 
         # Process the document with the requested chunking strategy
         result = process_document_chunking(
-            file_path, file_type, strategy, chunk_size, overlap
+            file_path, file_type, strategy, chunk_size, overlap, output_format
         )
 
-        logger.info(f"Document chunking completed with {result['total_chunks']} chunks")
-        return JSONResponse(content=result)
+        logger.info(f"Document chunking completed with {result['total_chunks'] if output_format == 'json' else 'chunks'}")
+
+        # Return response in appropriate format
+        if output_format == "markdown":
+            return PlainTextResponse(content=result)
+        else:
+            return JSONResponse(content=result)
 
     except Exception as e:
         logger.error(f"Error processing document: {str(e)}", exc_info=True)

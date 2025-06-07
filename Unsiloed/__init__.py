@@ -16,9 +16,10 @@ async def process(options):
             - strategy (str, optional): Chunking strategy to use (default: "semantic")
             - chunkSize (int, optional): Size of chunks (default: 1000)
             - overlap (int, optional): Overlap size (default: 100)
+            - outputFormat (str, optional): Output format ("json" or "markdown", default: "json")
     
     Returns:
-        dict: A dictionary containing the processed chunks and metadata
+        dict or str: A dictionary containing the processed chunks and metadata, or Markdown string
     """
     # Set the OpenAI API key from credentials
     if "credentials" in options and "apiKey" in options["credentials"]:
@@ -33,6 +34,11 @@ async def process(options):
     strategy = options.get("strategy", "semantic")
     chunk_size = options.get("chunkSize", 1000)
     overlap = options.get("overlap", 100)
+    output_format = options.get("outputFormat", "json")
+    
+    # Validate output format
+    if output_format not in ["json", "markdown"]:
+        raise ValueError("Invalid output format. Supported formats are 'json' and 'markdown'")
     
     # Handle URLs by downloading the file
     temp_file = None
@@ -79,7 +85,8 @@ async def process(options):
             file_type,
             strategy,
             chunk_size,
-            overlap
+            overlap,
+            output_format
         )
         
         return result
