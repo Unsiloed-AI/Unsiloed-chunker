@@ -11,3 +11,4 @@ openai
 numpy
 opencv-python-headless
 requests
+aiofiles
