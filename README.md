@@ -19,6 +19,16 @@ A super simple way to extract text from documents for  for intelligent document 
   - **Paragraph**: Splits text by paragraphs
   - **Heading**: Splits text by identified headings
 
+### 🤖 Agentic RAG Retrieval
+- **Advanced Query Processing**:
+  - **Multi-hop Queries**: Breaks down complex questions into simpler sub-questions
+  - **Negation Queries**: Handles queries with exclusion criteria
+  - **Simple Queries**: Efficiently processes straightforward information retrieval
+- **Agent-based Approach**:
+  - Uses LangChain's ReAct agent framework
+  - Employs specialized tools for different query types
+  - Provides detailed reasoning for each step of the retrieval process
+
 ## 🔧 Technical Details
 
 ### 🧠 OpenAI Integration
@@ -65,6 +75,21 @@ A super simple way to extract text from documents for  for intelligent document 
 - `chunk_size`: Size of chunks for fixed strategy in characters (default: 1000)
 - `overlap`: Overlap size for fixed strategy in characters (default: 100)
 
+### Agentic RAG Endpoints
+- **Query Endpoint** (`/agentic_rag/query`):
+  - `query`: The query to process
+  - `chunks`: Document chunks to use for retrieval
+  - `model_name`: The name of the OpenAI model to use (default: "gpt-4o")
+  - `temperature`: The temperature parameter for the LLM (default: 0)
+
+- **Process Chunks Endpoint** (`/agentic_rag/process_chunks`):
+  - `query`: The query to process
+  - `chunks_result`: Result from the chunking service
+  - `model_name`: The name of the OpenAI model to use (default: "gpt-4o")
+  - `temperature`: The temperature parameter for the LLM (default: 0)
+
+- **Reset Endpoint** (`/agentic_rag/reset`):
+  - No parameters required
 
 ## 📦 Installation
 
@@ -170,6 +195,56 @@ heading_result = Unsiloed.process_sync({
     },
     "strategy": "heading"
 })
+
+# Example 6: Using the agentic RAG system
+from Unsiloed.services.agentic_rag.service import process_query
+
+# First, chunk the document using any strategy
+chunking_result = Unsiloed.process_sync({
+    "filePath": "./test.pdf",
+    "credentials": {
+        "apiKey": os.environ.get("OPENAI_API_KEY")
+    },
+    "strategy": "semantic"
+})
+
+# Then, process a query using the agentic RAG system
+rag_result = process_query(
+    query="What are the key findings and their implications?",
+    chunks=chunking_result["chunks"]
+)
+
+print(f"Answer: {rag_result['answer']}")
+print(f"Query type: {rag_result['query_type']}")
+print(f"Reasoning: {rag_result['reasoning']}")
+```
+
+### Using the API
+
+```python
+import requests
+import json
+
+# First, chunk a document
+with open("test.pdf", "rb") as f:
+    files = {"document_file": ("test.pdf", f)}
+    data = {"strategy": "semantic"}
+    chunking_response = requests.post("http://localhost:8000/chunking", files=files, data=data)
+
+chunks_result = chunking_response.json()
+
+# Then, process a query using the agentic RAG system
+query_data = {
+    "query": "What topics are discussed excluding financial data?",
+    "chunks_result": chunks_result,
+    "model_name": "gpt-4o",
+    "temperature": 0
+}
+
+rag_response = requests.post("http://localhost:8000/agentic_rag/process_chunks", json=query_data)
+rag_result = rag_response.json()
+
+print(json.dumps(rag_result, indent=2))
 ```
 
 ## 🛠️ Development Setup

@@ -11,3 +11,8 @@ openai
 numpy
 opencv-python-headless
 requests
+langchain
+langchain-openai
+langchain-community
+faiss-cpu
+tiktoken
