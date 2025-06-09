@@ -1,8 +1,8 @@
 import os
-import chunktopus
+from Unsiloed.services.chunking import process_sync
 
 # Example usage with a URL
-result = chunktopus.process_sync({
+result = process_sync({
     "filePath": "https://omni-demo-data.s3.amazonaws.com/test/cs101.pdf",
     "credentials": {
         "apiKey": os.environ.get("OPENAI_API_KEY")
@@ -13,19 +13,19 @@ result = chunktopus.process_sync({
 })
 
 # Print the number of chunks found
-print(f"Found {result['total_chunks']} chunks with strategy: {result['strategy']}")
+print(f"✅ Found {result['total_chunks']} chunks using strategy: {result['strategy']}")
 
 # Print the first chunk's text
 if result['chunks'] and len(result['chunks']) > 0:
-    print("\nFirst chunk preview:")
+    print("\n🧩 First chunk preview:")
     print(result['chunks'][0]['text'][:200] + "...")
 
 """
-# Async example (uncomment to use)
+# Async example (uncomment to use if you implement `process()` async later)
 import asyncio
 
 async def main():
-    result = await chunktopus.process({
+    result = await process({
         "filePath": "https://omni-demo-data.s3.amazonaws.com/test/cs101.pdf",
         "credentials": {
             "apiKey": os.environ.get("OPENAI_API_KEY")
@@ -34,4 +34,4 @@ async def main():
     print(f"Found {result['total_chunks']} chunks")
 
 # asyncio.run(main())
-""" 
+"""

@@ -8,7 +8,7 @@ setup(
     version="0.1.3",
     author="Unsiloed AI",
     author_email="hello@unsiloed-ai.com",
-    description="A super simple way to extract text from documents for for intelligent document processing, extraction, and chunking with multi-threaded processing capabilities",
+    description="A super simple way to extract text from documents for intelligent document processing, extraction, and chunking with multi-threaded processing capabilities",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/Unsiloed-AI/Unsiloed-chunker",
@@ -40,4 +40,4 @@ setup(
             "Unsiloed=Unsiloed.cli:main",
         ],
     },
-) 
+)
