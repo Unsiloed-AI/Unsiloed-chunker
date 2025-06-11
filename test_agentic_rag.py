@@ -69,6 +69,11 @@ async def test_service_directly(pdf_path, delete_after=True):
             print(f"Text: {simple_result['chunks'][0]['text'][:200]}...")
             print(f"Similarity: {simple_result['chunks'][0].get('similarity', 0):.4f}")
         
+        # Display synthesized answer for simple queries
+        if simple_result.get('answer'):
+            print("\nSynthesized answer:")
+            print(simple_result['answer'][:1000] + "..." if len(simple_result['answer']) > 1000 else simple_result['answer'])
+        
         # Step 3: Test a multi-hop query
         print("\n--- Step 3: Testing multi-hop query ---")
         multi_hop_query = "What are the main concepts discussed and how are they related to each other?"
@@ -221,6 +226,11 @@ def test_api_endpoints(pdf_path):
             print("\nTop chunk:")
             print(f"Text: {simple_result['chunks'][0]['text'][:200]}...")
             print(f"Similarity: {simple_result['chunks'][0].get('similarity', 0):.4f}")
+        
+        # Display synthesized answer for simple queries
+        if simple_result.get('answer'):
+            print("\nSynthesized answer:")
+            print(simple_result['answer'][:1000] + "..." if len(simple_result['answer']) > 1000 else simple_result['answer'])
         
         # Step 3: Test a multi-hop query via API
         print("\n--- Step 3: Testing multi-hop query via API ---")

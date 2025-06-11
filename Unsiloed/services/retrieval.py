@@ -106,11 +106,23 @@ class AgenticRetrieval:
                 # Search the vector database
                 results = self.vector_db.search(query_embedding, top_k=top_k)
                 
+                # Also synthesize an answer for simple queries
+                sub_results = [{
+                    "query": query,
+                    "step": 1,
+                    "chunks": results,
+                    "metadata": {"type": QueryType.SIMPLE}
+                }]
+                
+                # Synthesize results to generate an answer
+                synthesis = synthesize_results(sub_results, query)
+                
                 return {
                     "query": query,
                     "type": query_type,
                     "chunks": results,
-                    "sub_queries": []
+                    "sub_queries": [],
+                    "answer": synthesis.get("synthesized_answer", "")
                 }
                 
             # For complex queries, use agentic approach
