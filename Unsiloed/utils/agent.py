@@ -153,11 +153,12 @@ def analyze_query(query: str) -> Dict[str, Any]:
             "error": str(e)
         }
 
-def decompose_query(query: str) -> List[Dict[str, Any]]:
+def decompose_query(query: str, document_context: str = "") -> List[Dict[str, Any]]:
     """Decompose a complex query into simpler sub-queries.
     
     Args:
         query: The complex query to decompose
+        document_context: Optional context from the document to help create better sub-queries
         
     Returns:
         List of sub-query dictionaries
@@ -190,6 +191,12 @@ def decompose_query(query: str) -> List[Dict[str, Any]]:
             3. Ensure the first sub-query retrieves foundational information needed for later steps
             4. Use specific language that would appear in relevant text (e.g., technical terms, exact phrases)
             5. Create 2-4 sub-queries that together can answer the original query
+            6. IMPORTANT: DO NOT use placeholders like [concept] or [topic]. Use generic terms like "main concepts" or 
+               "key relationships" without brackets. Make queries that can be executed without knowing the document content.
+            7. Examples of good sub-queries:
+               - "What are the main concepts discussed in the document?"
+               - "How do the concepts of machine learning and neural networks relate to each other?"
+               - "What are the practical applications of the main concepts in real-world scenarios?"
             """
         elif query_type == QueryType.NEGATION:
             type_specific_instructions = """
@@ -198,6 +205,21 @@ def decompose_query(query: str) -> List[Dict[str, Any]]:
             2. Create a second sub-query that explicitly identifies what should be excluded
             3. Be specific about the excluded content (sections, topics, perspectives)
             4. Focus the positive query on finding comprehensive information about the main topic
+            5. IMPORTANT: DO NOT use placeholders like [topic] or [section]. Use concrete terms from the original query.
+            6. Examples of good sub-queries:
+               - "What information exists about career advice in the document?"
+               - "What sections or chapters are labeled as Final Thoughts in the document?"
+            """
+        
+        # Prepare context message if we have document context
+        context_message = ""
+        if document_context:
+            context_message = f"""
+            I'm providing relevant excerpts from the document being queried to help you create specific sub-queries.
+            Use the topics, concepts, and terminology from these excerpts to formulate precise sub-queries.
+            
+            Document excerpts:
+            {document_context}
             """
         
         response = client.chat.completions.create(
@@ -215,6 +237,8 @@ def decompose_query(query: str) -> List[Dict[str, Any]]:
                     
                     {type_specific_instructions}
                     
+                    {context_message}
+                    
                     Return your analysis as a JSON object with a 'steps' array like this:
                     {{
                         "steps": [
@@ -227,7 +251,13 @@ def decompose_query(query: str) -> List[Dict[str, Any]]:
                         ]
                     }}
                     
-                    IMPORTANT: Make each sub-query as specific and targeted as possible, using terms that are likely to appear in relevant sections of text.
+                    IMPORTANT GUIDELINES:
+                    - Make each sub-query concrete and specific - not abstract templates
+                    - DO NOT use placeholder text like [concept] or [section] in your queries
+                    - Create queries that can be executed directly without further customization
+                    - Focus on finding specific information based on the original query
+                    - Sub-queries should be complete, grammatical questions or commands
+                    - If document context is provided, use the actual topics and terms from the document
                     """
                 },
                 {

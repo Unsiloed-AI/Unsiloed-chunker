@@ -128,8 +128,17 @@ class AgenticRetrieval:
                 
             # For complex queries, use agentic approach
             else:
-                # Decompose into sub-queries
-                sub_queries = decompose_query(query)
+                # PRELIMINARY SEARCH: Get initial context to help with query decomposition
+                preliminary_embedding = generate_query_embedding(query)
+                preliminary_chunks = self.vector_db.search(preliminary_embedding, top_k=5)
+                
+                # Extract text from preliminary chunks for context
+                document_context = ""
+                for chunk in preliminary_chunks:
+                    document_context += chunk.get("text", "")[:500] + "\n\n"
+                
+                # Decompose into sub-queries WITH CONTEXT
+                sub_queries = decompose_query(query, document_context=document_context)
                 sub_results = []
                 
                 # Process each sub-query
