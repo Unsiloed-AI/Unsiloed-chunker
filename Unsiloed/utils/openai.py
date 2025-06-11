@@ -181,74 +181,55 @@ def semantic_chunk_with_structured_output(text: str) -> List[Dict[str, Any]]:
             response_format={"type": "json_object"},
         )
 
-        # Parse the response
-        result = json.loads(response.choices[0].message.content)
+        # Parse the response with error handling
+        try:
+            result = json.loads(response.choices[0].message.content)
 
-        # Convert the response to our standard chunk format
-        chunks = []
-        current_position = 0
+            # Convert the response to our standard chunk format
+            chunks = []
+            current_position = 0
 
-        for i, chunk_data in enumerate(result.get("chunks", [])):
-            chunk_text = chunk_data.get("text", "")
-            # Find the chunk in the original text to get accurate character positions
-            start_position = text.find(chunk_text, current_position)
-            if start_position == -1:
-                # If exact match not found, use approximate position
-                start_position = current_position
+            for i, chunk_data in enumerate(result.get("chunks", [])):
+                chunk_text = chunk_data.get("text", "")
+                # Find the chunk in the original text to get accurate character positions
+                start_position = text.find(chunk_text, current_position)
+                if start_position == -1:
+                    # If exact match not found, use approximate position
+                    start_position = current_position
 
-            end_position = start_position + len(chunk_text)
+                end_position = start_position + len(chunk_text)
 
-            chunks.append(
-                {
+                # Update the current position for the next search
+                current_position = end_position
+
+                # Create chunk with metadata
+                chunks.append({
                     "text": chunk_text,
                     "metadata": {
-                        "title": chunk_data.get("title", f"Chunk {i + 1}"),
+                        "title": chunk_data.get("title", f"Chunk {i+1}"),
                         "position": chunk_data.get("position", "unknown"),
                         "start_char": start_position,
                         "end_char": end_position,
-                        "strategy": "semantic",
-                    },
-                }
-            )
+                        "strategy": "semantic"
+                    }
+                })
 
-            current_position = end_position
-
-        return chunks
+            return chunks
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Error processing semantic subchunk with JSON mode: {str(e)}")
+            
+            # Fall back to paragraph chunking as a safety measure
+            from Unsiloed.utils.chunking import paragraph_chunking
+            logger.info(f"Falling back to paragraph chunking due to JSON error")
+            return paragraph_chunking(text)
 
     except Exception as e:
-        logger.error(f"Error in semantic chunking with JSON mode: {str(e)}")
-        # Fall back to paragraph chunking if semantic chunking fails
-        logger.info("Falling back to paragraph chunking")
-        # We'll just do basic paragraph chunking here
-        paragraphs = text.split("\n\n")
-        paragraphs = [p.strip() for p in paragraphs if p.strip()]
-
-        chunks = []
-        current_position = 0
-
-        for i, paragraph in enumerate(paragraphs):
-            start_position = text.find(paragraph, current_position)
-            if start_position == -1:
-                start_position = current_position
-
-            end_position = start_position + len(paragraph)
-
-            chunks.append(
-                {
-                    "text": paragraph,
-                    "metadata": {
-                        "title": f"Paragraph {i + 1}",
-                        "position": "unknown",
-                        "start_char": start_position,
-                        "end_char": end_position,
-                        "strategy": "paragraph",  # Fall back strategy
-                    },
-                }
-            )
-
-            current_position = end_position
-
-        return chunks
+        logger.error(f"Error in semantic chunking: {str(e)}")
+        # Fall back to paragraph chunking as a safety measure
+        from Unsiloed.utils.chunking import paragraph_chunking
+        logger.info(f"Falling back to paragraph chunking due to error: {str(e)}")
+        return paragraph_chunking(text)
 
 
 def process_long_text_semantically(text: str) -> List[Dict[str, Any]]:
