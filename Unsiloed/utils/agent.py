@@ -178,6 +178,28 @@ def decompose_query(query: str) -> List[Dict[str, Any]]:
         # For complex queries, use LLM to decompose
         client = get_openai_client()
         
+        # Create query-type specific instructions
+        query_type = analysis.get("type", QueryType.UNKNOWN)
+        type_specific_instructions = ""
+        
+        if query_type == QueryType.MULTI_HOP:
+            type_specific_instructions = """
+            For multi-hop queries:
+            1. Break down the query into logical steps where each builds on the previous
+            2. Make each sub-query very specific and focused on retrieving a single piece of information
+            3. Ensure the first sub-query retrieves foundational information needed for later steps
+            4. Use specific language that would appear in relevant text (e.g., technical terms, exact phrases)
+            5. Create 2-4 sub-queries that together can answer the original query
+            """
+        elif query_type == QueryType.NEGATION:
+            type_specific_instructions = """
+            For negation queries:
+            1. Create a positive sub-query that finds information relevant to the main topic
+            2. Create a second sub-query that explicitly identifies what should be excluded
+            3. Be specific about the excluded content (sections, topics, perspectives)
+            4. Focus the positive query on finding comprehensive information about the main topic
+            """
+        
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -191,8 +213,7 @@ def decompose_query(query: str) -> List[Dict[str, Any]]:
                     
                     This query is of type: {analysis.get("type", "unknown")}
                     
-                    Break multi-hop queries into a sequence of simpler queries where each builds on the previous.
-                    For negation queries, create steps to find positive examples, then filter out negated items.
+                    {type_specific_instructions}
                     
                     Return your analysis as a JSON object with a 'steps' array like this:
                     {{
@@ -205,6 +226,8 @@ def decompose_query(query: str) -> List[Dict[str, Any]]:
                             ...
                         ]
                     }}
+                    
+                    IMPORTANT: Make each sub-query as specific and targeted as possible, using terms that are likely to appear in relevant sections of text.
                     """
                 },
                 {
@@ -272,10 +295,10 @@ def synthesize_results(sub_results: List[Dict[str, Any]], original_query: str) -
             results_text += f"\nStep {i+1} Results:\n"
             results_text += f"Query: {result.get('query', 'Unknown')}\n"
             
-            # Include retrieved chunks
+            # Include retrieved chunks - increased from top 3 to top 5 chunks and from 200 to 500 characters
             chunks = result.get("chunks", [])
-            for j, chunk in enumerate(chunks[:3]):  # Limit to top 3 chunks per step
-                results_text += f"- Chunk {j+1}: {chunk.get('text', '')[:200]}...\n"
+            for j, chunk in enumerate(chunks[:5]):  # Increased from top 3 to top 5 chunks
+                results_text += f"- Chunk {j+1}: {chunk.get('text', '')[:500]}...\n"  # Increased from 200 to 500 characters
         
         # Use LLM to synthesize the results
         response = client.chat.completions.create(
@@ -286,7 +309,8 @@ def synthesize_results(sub_results: List[Dict[str, Any]], original_query: str) -
                     "content": """You are an expert at synthesizing information from multiple sources.
                     Your task is to create a coherent answer to the original query based on the results from 
                     multiple search steps. Only use the information provided in the results.
-                    If the information is insufficient, state what's missing.
+                    If the information is insufficient, be specific about what's missing rather than making a general statement.
+                    Focus on providing as much relevant information as possible from the chunks available.
                     """
                 },
                 {

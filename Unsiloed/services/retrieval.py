@@ -6,6 +6,7 @@ from Unsiloed.utils.vector_db import SQLiteVectorDB
 from Unsiloed.utils.embeddings import generate_embeddings, generate_query_embedding
 from Unsiloed.utils.agent import analyze_query, decompose_query, synthesize_results, QueryType
 from Unsiloed.services.chunking import process_document_chunking
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -138,8 +139,8 @@ class AgenticRetrieval:
                     # Generate embedding for sub-query
                     sub_embedding = generate_query_embedding(sub_query_text)
                     
-                    # Search for this sub-query
-                    sub_chunks = self.vector_db.search(sub_embedding, top_k=top_k)
+                    # Increase the number of retrieved chunks for complex queries
+                    sub_chunks = self.vector_db.search(sub_embedding, top_k=top_k * 2)
                     
                     # Store sub-query results
                     sub_result = {
@@ -150,16 +151,54 @@ class AgenticRetrieval:
                     }
                     sub_results.append(sub_result)
                 
-                # For negation queries, filter out negated items
+                # For negation queries, implement more robust filtering
                 if query_type == QueryType.NEGATION:
-                    negated_entity = analysis.get("negated_entity", "")
+                    negated_entity = analysis.get("negated_entity", "").lower()
                     if negated_entity:
                         for result in sub_results:
-                            # Filter chunks that contain the negated entity
-                            result["chunks"] = [
-                                chunk for chunk in result["chunks"] 
-                                if negated_entity.lower() not in chunk["text"].lower()
-                            ]
+                            # More specific filtering logic for negated entities
+                            excluded_chunks = []
+                            included_chunks = []
+                            
+                            for chunk in result["chunks"]:
+                                chunk_text = chunk["text"].lower()
+                                # Check if this chunk appears to be from the negated section
+                                is_negated_section = False
+                                
+                                # Check if the chunk contains a heading with the negated entity
+                                heading_patterns = [
+                                    rf"\b{re.escape(negated_entity)}\b\s*(?:\:|\n|$)",
+                                    rf"(?:^|chapter|section)\s+\d+(?:\:\s*|\.\s*|\-\s*){re.escape(negated_entity)}",
+                                ]
+                                
+                                for pattern in heading_patterns:
+                                    if re.search(pattern, chunk_text, re.IGNORECASE):
+                                        is_negated_section = True
+                                        break
+                                
+                                # If it's not explicitly a negated section but still contains the negated term,
+                                # use a proximity check to see if it's likely describing that section
+                                if not is_negated_section and negated_entity in chunk_text:
+                                    proximity_patterns = [
+                                        rf"(?:in|from|of|the)\s+(?:the\s+)?{re.escape(negated_entity)}(?:\s+section|\s+chapter|\s+part)?",
+                                        rf"{re.escape(negated_entity)}(?:\s+section|\s+chapter|\s+part)"
+                                    ]
+                                    
+                                    for pattern in proximity_patterns:
+                                        if re.search(pattern, chunk_text, re.IGNORECASE):
+                                            is_negated_section = True
+                                            break
+                                
+                                if is_negated_section:
+                                    excluded_chunks.append(chunk)
+                                else:
+                                    included_chunks.append(chunk)
+                            
+                            # Update the chunks for this result
+                            result["chunks"] = included_chunks
+                            # Add information about what was filtered
+                            result["filtered_count"] = len(excluded_chunks)
+                            result["filtered_reason"] = f"Excluded chunks related to '{negated_entity}'"
                 
                 # Synthesize results from all sub-queries
                 synthesis = synthesize_results(sub_results, query)
