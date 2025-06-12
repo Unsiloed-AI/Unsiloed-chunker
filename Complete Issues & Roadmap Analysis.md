@@ -46,10 +46,12 @@ Unsiloed-chunker/
 
     - **Status**: Open, 7 comments
     - **Impact**: Major feature expansion into RAG territory
+
 2. **Issue #4: Multiple OCR/LLM Model Support** - $50 Bounty
 
     - **Status**: Open, 5 comments
     - **Impact**: Reduce OpenAI dependency
+
 3. **Issue #3: Extended File Type Support** - $50 Bounty
 
     - **Status**: Open, 7 comments
@@ -61,14 +63,17 @@ Unsiloed-chunker/
 
     - **Status**: Open, 2 comments
     - **Impact**: Advanced chunking capabilities
+
 2. **Issue #33: Table and Image Summarization** - $50 Bounty
 
     - **Status**: Open, 2 comments
     - **Impact**: Multi-modal content processing
+
 3. **Issue #32: Multi-Column Document Reading Order** - $50 Bounty
 
     - **Status**: Open, 4 comments
     - **Impact**: Complex document layout handling
+
 4. **Issue #19: Table-Specific Chunking Strategy**
 
     - **Status**: Open, no bounty
@@ -80,6 +85,7 @@ Unsiloed-chunker/
 
     - **Status**: Open, 4 comments
     - **Impact**: Better output formatting
+
 2. **Issue #25: Embedding Generation Support** - $50 Bounty
 
     - **Status**: Open, 2 comments
@@ -91,10 +97,12 @@ Unsiloed-chunker/
 
     - **Status**: Open, 2 comments
     - **Impact**: Better debugging and visualization
+
 2. **Issue #18: Text Cleaning Pipeline Enhancement** - $15 Bounty
 
     - **Status**: Open, 3 comments
     - **Impact**: Improved text preprocessing
+
 3. **Issue #29: Issues List and Roadmap Creation** - $50 Bounty
 
     - **Status**: Open, 6 comments
@@ -110,11 +118,13 @@ Unsiloed-chunker/
     - Only `test_text_cleaning.py` exists
     - Missing tests for chunking strategies, API endpoints, utils
     - No integration tests or performance benchmarks
+
 2. **Incomplete Error Handling**
 
     - No centralized error handling in routes
     - Missing input validation
     - No proper logging framework
+
 3. **Documentation Gaps**
 
     - No API documentation (FastAPI auto-docs only)
@@ -127,10 +137,12 @@ Unsiloed-chunker/
 
     - No visible multi-threading implementation in codebase
     - Issue #2 indicates significant latency problems
+
 2. **Memory Management**
 
     - No streaming processing for large files
     - Potential memory issues with large documents
+
 3. **No Caching Layer**
 
     - Repeated processing of same documents
@@ -143,11 +155,13 @@ Unsiloed-chunker/
     - Need to verify all 5 strategies are fully implemented
     - Missing hierarchical chunking (Issue #30)
     - No table-specific chunking (Issue #19)
+
 2. **Multi-Modal Content**
 
     - Limited image processing capabilities
     - No table summarization (Issue #33)
     - Poor multi-column document handling (Issue #32)
+
 3. **Output Formats**
 
     - Only JSON output currently
@@ -160,10 +174,12 @@ Unsiloed-chunker/
 
     - Only OpenAI integration
     - No support for other LLM providers (Issue #4)
+
 2. **File Format Limitations**
 
     - Only PDF, DOCX, PPTX supported
     - Missing common formats (Issue #3)
+    
 3. **Vector Search Integration**
 
     - No embedding generation (Issue #25)
