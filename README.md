@@ -172,6 +172,93 @@ heading_result = Unsiloed.process_sync({
     },
     "strategy": "heading"
 })
+
+# Example 6: Processing HTML files
+html_result = Unsiloed.process_sync({
+    "filePath": "./webpage.html",
+    "credentials": {
+        "apiKey": os.environ.get("OPENAI_API_KEY")
+    },
+    "strategy": "paragraph"
+})
+
+# Example 7: Processing Markdown files
+markdown_result = Unsiloed.process_sync({
+    "filePath": "./README.md",
+    "credentials": {
+        "apiKey": os.environ.get("OPENAI_API_KEY")
+    },
+    "strategy": "heading"
+})
+
+# Example 8: Processing website URLs
+url_result = Unsiloed.process_sync({
+    "filePath": "https://example.com",
+    "credentials": {
+        "apiKey": os.environ.get("OPENAI_API_KEY")
+    },
+    "strategy": "paragraph"
+})
+
+
+
+# Example 11: Using async version
+import asyncio
+
+async def async_processing():
+    result = await Unsiloed.process({
+        "filePath": "./test.pdf",
+        "credentials": {
+            "apiKey": os.environ.get("OPENAI_API_KEY")
+        },
+        "strategy": "semantic"
+    })
+    return result
+
+# Run async processing
+async_result = asyncio.run(async_processing())
+```
+
+### Supported File Types
+
+- **PDF files** (.pdf) - All chunking strategies supported
+- **Word documents** (.docx) - All strategies except page-based
+- **PowerPoint presentations** (.pptx) - All strategies except page-based  
+- **HTML files** (.html, .htm) - All strategies except page-based
+- **Markdown files** (.md, .markdown) - All strategies except page-based
+- **Website URLs** (http://, https://) - Automatically detected and processed
+
+### Chunking Strategies
+
+- **semantic**: AI-powered semantic chunking (requires OpenAI API key)
+- **fixed**: Fixed-size chunks with configurable overlap
+- **page**: Page-based chunking (PDF only)
+- **paragraph**: Paragraph-based chunking
+- **heading**: Heading-based chunking
+
+### Credential Options
+
+You can provide credentials in three ways:
+
+1. **In the options** (recommended):
+```python
+result = Unsiloed.process_sync({
+    "filePath": "./test.pdf",
+    "credentials": {
+        "apiKey": "your-openai-api-key"
+    },
+    "strategy": "semantic"
+})
+```
+
+2. **Environment variable**:
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+```
+
+3. **Using .env file**:
+```
+OPENAI_API_KEY=your-openai-api-key
 ```
 
 ##  Development Setup

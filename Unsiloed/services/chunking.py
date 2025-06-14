@@ -9,7 +9,11 @@ from Unsiloed.utils.openai import (
     extract_text_from_pdf,
     extract_text_from_docx,
     extract_text_from_pptx,
+    extract_text_from_html,
+    extract_text_from_markdown_file,
+    extract_text_from_url,
 )
+from Unsiloed.utils.web_utils import get_content_type_from_url, validate_url
 
 import logging
 
@@ -24,11 +28,11 @@ def process_document_chunking(
     overlap=100,
 ):
     """
-    Process a document file (PDF, DOCX, PPTX) with the specified chunking strategy.
+    Process a document file (PDF, DOCX, PPTX, HTML, Markdown) or URL with the specified chunking strategy.
 
     Args:
-        file_path: Path to the document file
-        file_type: Type of document (pdf, docx, pptx)
+        file_path: Path to the document file or URL
+        file_type: Type of document (pdf, docx, pptx, html, markdown, url)
         strategy: Chunking strategy to use
         chunk_size: Size of chunks for fixed strategy
         overlap: Overlap size for fixed strategy
@@ -44,19 +48,19 @@ def process_document_chunking(
     if strategy == "page" and file_type == "pdf":
         chunks = page_based_chunking(file_path)
     elif strategy == "semantic":
-        # For semantic chunking, pass the file path directly to enable YOLO segmentation
-        semantic_result = semantic_chunking(file_path)
-        chunks = semantic_result.get('chunks', []) if isinstance(semantic_result, dict) else semantic_result
+        # For semantic chunking, pass the file path directly to enable YOLO segmentation for PDFs
+        # For other file types, extract text first
+        if file_type == "pdf":
+            semantic_result = semantic_chunking(file_path)
+            chunks = semantic_result.get('chunks', []) if isinstance(semantic_result, dict) else semantic_result
+        else:
+            # Extract text first for non-PDF files
+            text = _extract_text_by_type(file_path, file_type)
+            semantic_result = semantic_chunking(text)
+            chunks = semantic_result.get('chunks', []) if isinstance(semantic_result, dict) else semantic_result
     else:
         # Extract text based on file type for other strategies
-        if file_type == "pdf":
-            text = extract_text_from_pdf(file_path)
-        elif file_type == "docx":
-            text = extract_text_from_docx(file_path)
-        elif file_type == "pptx":
-            text = extract_text_from_pptx(file_path)
-        else:
-            raise ValueError(f"Unsupported file type: {file_type}")
+        text = _extract_text_by_type(file_path, file_type)
 
         # Apply the selected chunking strategy
         if strategy == "fixed":
@@ -91,3 +95,53 @@ def process_document_chunking(
     }
 
     return result
+
+
+def _extract_text_by_type(file_path: str, file_type: str) -> str:
+    """
+    Extract text based on file type.
+    
+    Args:
+        file_path: Path to the document file or URL
+        file_type: Type of document
+        
+    Returns:
+        Extracted text content
+    """
+    if file_type == "pdf":
+        return extract_text_from_pdf(file_path)
+    elif file_type == "docx":
+        return extract_text_from_docx(file_path)
+    elif file_type == "pptx":
+        return extract_text_from_pptx(file_path)
+    elif file_type == "html":
+        return extract_text_from_html(file_path)
+    elif file_type == "markdown":
+        return extract_text_from_markdown_file(file_path)
+    elif file_type == "url":
+        return extract_text_from_url(file_path)
+    else:
+        raise ValueError(f"Unsupported file type: {file_type}")
+
+
+def determine_file_type_from_url(url: str) -> str:
+    """
+    Determine the file type from a URL.
+    
+    Args:
+        url: URL to analyze
+        
+    Returns:
+        File type string
+    """
+    try:
+        content_type = get_content_type_from_url(url)
+        if content_type == 'html':
+            return 'url'  # Treat HTML URLs as web pages
+        elif content_type == 'markdown':
+            return 'url'  # Treat markdown URLs as web pages
+        else:
+            return 'url'  # Default to URL processing
+    except Exception as e:
+        logger.warning(f"Could not determine content type for URL {url}: {str(e)}")
+        return 'url'  # Default to URL processing

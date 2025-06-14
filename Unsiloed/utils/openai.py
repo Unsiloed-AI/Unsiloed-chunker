@@ -9,6 +9,12 @@ import PyPDF2
 from dotenv import load_dotenv
 import numpy as np
 import cv2
+from Unsiloed.utils.web_utils import (
+    extract_text_from_html_file,
+    extract_text_from_markdown,
+    scrape_website_sync,
+    validate_url
+)
 
 load_dotenv()
 
@@ -484,4 +490,71 @@ def extract_text_from_pptx(pptx_path: str) -> str:
         return "\n\n".join(full_text)
     except Exception as e:
         logger.error(f"Error extracting text from PPTX: {str(e)}")
+        raise
+
+
+def extract_text_from_html(html_path: str) -> str:
+    """
+    Extract text from an HTML file.
+    
+    Args:
+        html_path: Path to the HTML file
+        
+    Returns:
+        Extracted text content
+    """
+    try:
+        logger.info(f"Extracting text from HTML file: {html_path}")
+        text = extract_text_from_html_file(html_path)
+        logger.info(f"Successfully extracted {len(text)} characters from HTML file")
+        return text
+    except Exception as e:
+        logger.error(f"Error extracting text from HTML file {html_path}: {str(e)}")
+        raise
+
+
+def extract_text_from_markdown_file(markdown_path: str) -> str:
+    """
+    Extract text from a markdown file.
+    
+    Args:
+        markdown_path: Path to the markdown file
+        
+    Returns:
+        Extracted text content
+    """
+    try:
+        logger.info(f"Extracting text from markdown file: {markdown_path}")
+        text = extract_text_from_markdown(markdown_path)
+        logger.info(f"Successfully extracted {len(text)} characters from markdown file")
+        return text
+    except Exception as e:
+        logger.error(f"Error extracting text from markdown file {markdown_path}: {str(e)}")
+        raise
+
+
+def extract_text_from_url(url: str) -> str:
+    """
+    Extract text from a URL (website).
+    
+    Args:
+        url: URL to scrape
+        
+    Returns:
+        Extracted text content
+    """
+    try:
+        logger.info(f"Extracting text from URL: {url}")
+        
+        # Validate and normalize URL
+        url = validate_url(url)
+        
+        # Scrape the website
+        result = scrape_website_sync(url)
+        text = result['content']
+        
+        logger.info(f"Successfully extracted {len(text)} characters from URL")
+        return text
+    except Exception as e:
+        logger.error(f"Error extracting text from URL {url}: {str(e)}")
         raise
