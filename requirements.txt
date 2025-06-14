@@ -11,3 +11,5 @@ openai
 numpy
 opencv-python-headless
 requests
+ultralytics
+pytesseract
