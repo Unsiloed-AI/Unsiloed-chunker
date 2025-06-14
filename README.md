@@ -4,45 +4,47 @@
 
 
 
-# 📄 Unsiloed AI Document Data extractor
+# Unsiloed AI
 
-A super simple way to extract text from documents for  for intelligent document processing, extraction, and chunking with multi-threaded processing capabilities.
+Unsiloed AI simplifies document processing, parsing diverse formats — including advanced PDF understanding — and providing seamless integrations with the GenAI ecosystem.
+Perfect for chunking, structured extraction, and powering high-quality RAG pipelines.
 
-## 🚀 Features
+##  Features
 
-### 📊 Document Chunking
+### Document Chunking
 - **Supported File Types**: PDF, DOCX, PPTX
 - **Chunking Strategies**:
   - **Fixed Size**: Splits text into chunks of specified size with optional overlap
   - **Page-based**: Splits PDF by pages (PDF only, falls back to paragraph for other file types)
-  - **Semantic**: Uses Multi-Modal Model to identify meaningful semantic chunks
+  - **Semantic**: Uses YOLO for segmentation and VLM + OCR for intelligent extraction of text, images, and tables — followed by semantic grouping for clean, contextual output.
   - **Paragraph**: Splits text by paragraphs
   - **Heading**: Splits text by identified headings
 
-## 🔧 Technical Details
+##  Technical Details
 
-### 🧠 OpenAI Integration
+###  OpenAI Integration
 - Uses OpenAI GPT-4o for semantic chunking
+- Uses Unsiloed finetuned Yolo model for segmentation (https://huggingface.co/mubashiross/Unsiloed_YOLO_MODEL)
 - Handles authentication via API key from environment variables
 - Implements automatic retries and timeout handling
 - Provides structured JSON output for semantic chunks
 
-### 🔄 Parallel Processing
+### Parallel Processing
 - Multi-threaded processing for improved performance
 - Parallel page extraction from PDFs
 - Distributes processing of large documents across multiple threads
 
-### 📝 Document Processing
+###  Document Processing
 - Extracts text from PDF, DOCX, and PPTX files
 - Handles image encoding for vision-based models
 - Generates extraction prompts for structured data extraction
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environmental Variables
 - `OPENAI_API_KEY`: Your OpenAI API key
 
-## 🛑 Constraints & Limitations
+## Constraints & Limitations
 
 ### File Handling
 - Temporary files are created during processing and deleted afterward
@@ -56,7 +58,7 @@ A super simple way to extract text from documents for  for intelligent document 
 - Request timeout set to 60 seconds
 - Maximum of 3 retries for OpenAI API calls
 
-## 📋 Request Parameters
+##  Request Parameters
 
 ### Document Chunking Endpoint
 - `document_file`: The document file to process (PDF, DOCX, PPTX)
@@ -66,7 +68,7 @@ A super simple way to extract text from documents for  for intelligent document 
 - `overlap`: Overlap size for fixed strategy in characters (default: 100)
 
 
-## 📦 Installation
+##  Installation
 
 ### Using pip
 ```bash
@@ -83,7 +85,7 @@ Unsiloed requires Python 3.8 or higher and has the following dependencies:
 - fastapi
 - python-multipart
 
-## 🔑 Environment Setup
+##  Environment Setup
 
 Before using Unsiloed, set up your OpenAI API key:
 
@@ -172,7 +174,7 @@ heading_result = Unsiloed.process_sync({
 })
 ```
 
-## 🛠️ Development Setup
+##  Development Setup
 
 ### Prerequisites
 
@@ -221,7 +223,7 @@ Open your browser and go to `http://localhost:8000/docs`
 
 
 
-## 👨‍💻 Contributing
+##  Contributing
 
 We welcome contributions to Unsiloed! Here's how you can help:
 
@@ -271,7 +273,7 @@ git push origin feature/your-feature-name
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENSE) file for details.
 
 ## 🌐 Community and Support
 

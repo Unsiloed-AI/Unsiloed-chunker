@@ -43,8 +43,12 @@ def process_document_chunking(
     # Handle page-based chunking for PDFs only
     if strategy == "page" and file_type == "pdf":
         chunks = page_based_chunking(file_path)
+    elif strategy == "semantic":
+        # For semantic chunking, pass the file path directly to enable YOLO segmentation
+        semantic_result = semantic_chunking(file_path)
+        chunks = semantic_result.get('chunks', []) if isinstance(semantic_result, dict) else semantic_result
     else:
-        # Extract text based on file type
+        # Extract text based on file type for other strategies
         if file_type == "pdf":
             text = extract_text_from_pdf(file_path)
         elif file_type == "docx":
@@ -57,8 +61,6 @@ def process_document_chunking(
         # Apply the selected chunking strategy
         if strategy == "fixed":
             chunks = fixed_size_chunking(text, chunk_size, overlap)
-        elif strategy == "semantic":
-            chunks = semantic_chunking(text)
         elif strategy == "paragraph":
             chunks = paragraph_chunking(text)
         elif strategy == "heading":
