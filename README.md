@@ -271,11 +271,11 @@ git push origin feature/your-feature-name
 - Write tests for new features
 
 
-## 📄 License
+##  License
 
 This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENSE) file for details.
 
-## 🌐 Community and Support
+##  Community and Support
 
 ### Join the Community
 
