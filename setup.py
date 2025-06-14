@@ -36,6 +36,12 @@ setup(
         "requests",
         "ultralytics",
         "pytesseract",
+        "beautifulsoup4",
+        "markdown",
+        "lxml",
+        "html2text",
+        "aiohttp",
+        "validators",
     ],
     entry_points={
         "console_scripts": [

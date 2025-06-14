@@ -13,3 +13,9 @@ opencv-python-headless
 requests
 ultralytics
 pytesseract
+beautifulsoup4
+markdown
+lxml
+html2text
+aiohttp
+validators
