@@ -183,48 +183,8 @@ result = Unsiloed.process_sync({
     "overlap": 100
 })
 
-# Print the result
-print(result)
 
-# Example 2: Fixed-size chunking
-fixed_result = Unsiloed.process_sync({
-    "filePath": "./test.pdf", #path to your file
-    "credentials": {
-        "apiKey": os.environ.get("OPENAI_API_KEY")
-    },
-    "strategy": "fixed",
-    "chunkSize": 1500,
-    "overlap": 150
-})
-
-# Example 3: Page-based chunking (PDF only)
-page_result = Unsiloed.process_sync({
-    "filePath": "./test.pdf",
-    "credentials": {
-        "apiKey": os.environ.get("OPENAI_API_KEY")
-    },
-    "strategy": "page"
-})
-
-# Example 4: Paragraph chunking
-paragraph_result = Unsiloed.process_sync({
-    "filePath": "./document.docx",
-    "credentials": {
-        "apiKey": os.environ.get("OPENAI_API_KEY")
-    },
-    "strategy": "paragraph"
-})
-
-# Example 5: Heading chunking
-heading_result = Unsiloed.process_sync({
-    "filePath": "./presentation.pptx",
-    "credentials": {
-        "apiKey": os.environ.get("OPENAI_API_KEY")
-    },
-    "strategy": "heading"
-})
-
-# Example 6: Processing HTML files
+# Example 2: Processing HTML files
 html_result = Unsiloed.process_sync({
     "filePath": "./webpage.html",
     "credentials": {
@@ -233,7 +193,7 @@ html_result = Unsiloed.process_sync({
     "strategy": "paragraph"
 })
 
-# Example 7: Processing Markdown files
+# Example 3: Processing Markdown files
 markdown_result = Unsiloed.process_sync({
     "filePath": "./README.md",
     "credentials": {
@@ -242,7 +202,7 @@ markdown_result = Unsiloed.process_sync({
     "strategy": "heading"
 })
 
-# Example 8: Processing website URLs
+# Example 4: Processing website URLs
 url_result = Unsiloed.process_sync({
     "filePath": "https://example.com",
     "credentials": {
@@ -253,7 +213,7 @@ url_result = Unsiloed.process_sync({
 
 
 
-# Example 11: Using async version
+# Example 5: Using async version
 import asyncio
 
 async def async_processing():
