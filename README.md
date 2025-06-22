@@ -30,8 +30,6 @@
 
 </div>
 
-Unsiloed AI transforms unstructured data into LLM-ready structured assets for RAG and workflow automation
-
 ##  Features
 
 ### Document Chunking
