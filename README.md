@@ -2,25 +2,76 @@
   <img src="logo.png" alt="Logo" width="200">
 </p>
 
+<div align="center">
+
+# Unsiloed AI | AI Agents for Unstructured Financial Data
+
+**Transform unstructured data into LLM-ready structured assets for RAG and workflow automation**
+
+---
+
+### 🚀 Quick Links
+
+<p align="center">
+  <a href="https://discord.com/channels/1385519607229583370/1385519607229583373">
+    <img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord">
+  </a>
+  <a href="https://www.unsiloed-ai.com/">
+    <img src="https://img.shields.io/badge/Try%20It%20Out-Live%20Demo-FF6B6B?style=for-the-badge&logo=rocket&logoColor=white" alt="Try It Out">
+  </a>
+  <a href="#-connect-with-us">
+    <img src="https://img.shields.io/badge/Contact%20Us-Get%20In%20Touch-4ECDC4?style=for-the-badge&logo=mail&logoColor=white" alt="Contact Us">
+  </a>
+</p>
 
 
-# Unsiloed AI
 
-Unsiloed AI simplifies document processing, parsing diverse formats — including advanced PDF understanding — and providing seamless integrations with the GenAI ecosystem.
-Perfect for chunking, structured extraction, and powering high-quality RAG pipelines.
+---
+
+</div>
+
+Unsiloed AI transforms unstructured data into LLM-ready structured assets for RAG and workflow automation
 
 ##  Features
 
 ### Document Chunking
-- **Supported File Types**: PDF, DOCX, PPTX
+- **Supported File Types**: PDF, DOCX, PPTX, HTML, Markdown, Images, Chat Logs, Webpages
 - **Chunking Strategies**:
   - **Fixed Size**: Splits text into chunks of specified size with optional overlap
   - **Page-based**: Splits PDF by pages (PDF only, falls back to paragraph for other file types)
   - **Semantic**: Uses YOLO for segmentation and VLM + OCR for intelligent extraction of text, images, and tables — followed by semantic grouping for clean, contextual output.
   - **Paragraph**: Splits text by paragraphs
   - **Heading**: Splits text by identified headings
+  - **Hierarchical**: Advanced multi-level chunking with parent-child relationships
 
-##  Technical Details
+### Local LLM Model Support
+- **Modular LLM Selection**: Choose from multiple LLM providers and models
+- **Local Model Integration**: Support for locally hosted models (Ollama)
+- **Provider Options**: OpenAI, Anthropic, Google, Cohere, and custom endpoints
+- **Model Flexibility**: Switch between different models for different chunking strategies
+
+### LaTeX Support
+- **Mathematical Equations**: Full LaTeX rendering and processing support
+- **Scientific Documents**: Optimized for academic and technical papers
+- **Formula Extraction**: Intelligent extraction and preservation of mathematical formulas
+- **Equation Chunking**: Maintains mathematical context across chunks
+
+### Multi-lingual Support
+- **Language Detection**: Automatic language identification
+- **Parameterized Processing**: Language-specific chunking strategies
+- **Unicode Support**: Full support for non-Latin scripts
+- **Localized Chunking**: Language-aware paragraph and sentence boundaries
+
+### Extended File Format Support
+- **Images**: JPG, PNG, TIFF, BMP with OCR capabilities
+- **Chat Logs**: WhatsApp, Slack, Discord, Teams conversation processing
+- **Webpages**: Direct URL processing with content extraction
+- **Spreadsheets**: Excel, CSV with structured data extraction
+
+### Performance & Optimization
+- **Page Alignment**: Optimized text alignment and formatting preservation
+
+
 
 ###  OpenAI Integration
 - Uses OpenAI GPT-4o for semantic chunking
@@ -227,6 +278,10 @@ async_result = asyncio.run(async_processing())
 - **HTML files** (.html, .htm) - All strategies except page-based
 - **Markdown files** (.md, .markdown) - All strategies except page-based
 - **Website URLs** (http://, https://) - Automatically detected and processed
+- **Images** (.jpg, .png, .tiff, .bmp) - OCR-powered text extraction
+- **Chat Logs** - WhatsApp, Slack, Discord, Teams conversation files
+- **Spreadsheets** (.xlsx, .csv) - Structured data extraction and chunking
+- **Archives** (.zip, .rar) - Batch processing of contained documents
 
 ### Chunking Strategies
 
@@ -235,6 +290,7 @@ async_result = asyncio.run(async_processing())
 - **page**: Page-based chunking (PDF only)
 - **paragraph**: Paragraph-based chunking
 - **heading**: Heading-based chunking
+- **hierarchical**: Advanced multi-level chunking with parent-child relationships
 
 ### Credential Options
 
@@ -375,3 +431,86 @@ This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENS
 
 - **Star** the repository to show support
 - **Watch** for notification on new releases
+
+</div>
+
+---
+
+## 📞 Connect with Us
+
+<div align="center">
+
+### Ready to Transform Your Data? Let's Connect! 🚀
+
+<p align="center">
+  <img src="https://img.shields.io/badge/We're%20Here%20to%20Help-Let's%20Chat-brightgreen?style=for-the-badge" alt="We're Here to Help">
+</p>
+
+</div>
+
+<table align="center">
+<tr>
+<td align="center" width="33%">
+
+### 📧 Email Us
+**Get in touch directly**
+
+[hello@unsiloed-ai.com](mailto:hello@unsiloed-ai.com)
+
+<a href="mailto:hello@unsiloed-ai.com">
+<img src="https://img.shields.io/badge/Send%20Email-hello@unsiloed--ai.com-EA4335?style=for-the-badge&logo=gmail&logoColor=white" alt="Email">
+</a>
+
+</td>
+<td align="center" width="33%">
+
+### 📅 Schedule a Call
+**Book a discovery session**
+
+[Schedule with our team](https://calendly.com/aman-unsiloed-ai/unsiloed-ai-discovery-call?month=2025-06)
+
+<a href="https://calendly.com/aman-unsiloed-ai/unsiloed-ai-discovery-call?month=2025-06">
+<img src="https://img.shields.io/badge/Book%20a%20Call-Calendly-00A2FF?style=for-the-badge&logo=calendly&logoColor=white" alt="Schedule Call">
+</a>
+
+</td>
+<td align="center" width="33%">
+
+### 🌐 Visit Our Website
+**Explore more features**
+
+[www.unsiloed-ai.com](https://www.unsiloed-ai.com/)
+
+<a href="https://www.unsiloed-ai.com/">
+<img src="https://img.shields.io/badge/Visit%20Website-unsiloed--ai.com-FF6B6B?style=for-the-badge&logo=web&logoColor=white" alt="Website">
+</a>
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+
+### 💬 Join Our Community
+
+<p align="center">
+  <a href="https://discord.com/channels/1385519607229583370/1385519607229583373">
+    <img src="https://img.shields.io/badge/Discord-Join%20Our%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord Community">
+  </a>
+</p>
+
+**Connect with fellow developers, share ideas, and get support from our community!**
+
+---
+
+<p align="center">
+  <strong>Made with ❤️ by the Unsiloed AI Team</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Built%20for-Developers-blue?style=flat-square" alt="Built for Developers">
+  <img src="https://img.shields.io/badge/Open%20Source-Apache--2.0-green?style=flat-square" alt="Open Source">
+  <img src="https://img.shields.io/badge/AI%20Powered-GPT--4-orange?style=flat-square" alt="AI Powered">
+</p>
+
+</div>
