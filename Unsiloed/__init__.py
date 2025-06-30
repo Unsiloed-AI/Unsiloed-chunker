@@ -2,7 +2,7 @@
 import os
 import tempfile
 import requests
-from Unsiloed.services.chunking import process_document_chunking, determine_file_type_from_url
+from Unsiloed.services.chunking import process_document_chunking_with_agentic_rag, process_document_chunking, determine_file_type_from_url
 from Unsiloed.utils.chunking import ChunkingStrategy
 from Unsiloed.utils.web_utils import validate_url, get_content_type_from_url
 
@@ -106,13 +106,25 @@ async def process(options):
                 raise ValueError("Unsupported file type. Supported formats: PDF, DOCX, PPTX, HTML, Markdown.")
         
         # Process the document
-        result = process_document_chunking(
-            local_file_path, 
-            file_type,
-            strategy,
-            chunk_size,
-            overlap
-        )
+        query = options.get("query")
+        if query:
+            # Use the new Agentic RAG integration if a query is provided
+            result = process_document_chunking_with_agentic_rag(
+                local_file_path,
+                file_type,
+                strategy,
+                query=query,
+                chunk_size=chunk_size,
+                overlap=overlap
+            )
+        else:
+            result = process_document_chunking(
+                local_file_path, 
+                file_type,
+                strategy,
+                chunk_size,
+                overlap
+            )
         
         return result
         

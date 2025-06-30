@@ -14,6 +14,7 @@ from Unsiloed.utils.openai import (
     extract_text_from_url,
 )
 from Unsiloed.utils.web_utils import get_content_type_from_url, validate_url
+from Unsiloed.agentic_rag import AgenticRAG
 
 import logging
 
@@ -145,3 +146,57 @@ def determine_file_type_from_url(url: str) -> str:
     except Exception as e:
         logger.warning(f"Could not determine content type for URL {url}: {str(e)}")
         return 'url'  # Default to URL processing
+
+
+def process_document_chunking_with_agentic_rag(
+    file_path,
+    file_type,
+    strategy,
+    query=None,
+    chunk_size=1000,
+    overlap=100,
+    top_k=3,
+):
+    """
+    Process a document and (optionally) run Agentic RAG for a query.
+    Returns both chunking result and, if query is provided, a RAG answer.
+    """
+    result = process_document_chunking(
+        file_path,
+        file_type,
+        strategy,
+        chunk_size=chunk_size,
+        overlap=overlap,
+    )
+    # Only run AgenticRAG if semantic chunking and query provided
+    rag_answer = None
+    if strategy == "semantic" and query:
+        # Group chunks by page and section if possible
+        # Here, we assume each chunk has 'metadata' with 'page_number' and 'section' if available
+        chunks = result.get("chunks", [])
+        pages = {}
+        for chunk in chunks:
+            meta = chunk.get("metadata", {})
+            page_id = f"page_{meta.get('page_number', 1)}"
+            section_id = meta.get('heading') or meta.get('section') or f"section_{page_id}_0"
+            # Build page
+            if page_id not in pages:
+                pages[page_id] = {"page_id": page_id, "text": "", "sections": {}}
+            # Build section
+            if section_id not in pages[page_id]["sections"]:
+                pages[page_id]["sections"][section_id] = {"section_id": section_id, "text": "", "semantic_chunks": []}
+            # Add semantic chunk
+            pages[page_id]["sections"][section_id]["semantic_chunks"].append({
+                "chunk_id": chunk.get("id") or chunk.get("chunk_id") or f"chunk_{len(pages[page_id]["sections"][section_id]["semantic_chunks"])}",
+                "text": chunk["text"]
+            })
+        # Convert to list structure
+        page_list = []
+        for page in pages.values():
+            page_obj = {"page_id": page["page_id"], "text": page["text"], "sections": []}
+            for section in page["sections"].values():
+                page_obj["sections"].append(section)
+            page_list.append(page_obj)
+        rag = AgenticRAG()
+        rag_answer = rag.run_hierarchical(query, page_list, top_k=top_k)
+    return {**result, "rag_answer": rag_answer}
