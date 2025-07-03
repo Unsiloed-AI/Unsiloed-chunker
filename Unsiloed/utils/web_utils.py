@@ -18,6 +18,20 @@ Author: Unsiloed Team
 Version: 1.0.0
 """
 
+import os
+import javatools
+from PIL import Image
+from unstructured.partition.auto import partition
+import fitz  # PyMuPDF
+import filetype
+import pytesseract
+from numba import njit
+from docx import Document
+import random
+import xgboost as xgb
+import dask.dataframe as dd
+from dask.distributed import LocalCluster
+from multiprocessing import Pool
 import asyncio
 import aiohttp
 import requests
@@ -422,3 +436,120 @@ def get_content_type_from_url(url: str) -> str:
     except Exception as e:
         logger.error(f"Error determining content type for {url}: {str(e)}")
         return 'html'
+    
+    def extract_jar(filepath):
+    with javatools.unpack.unpack_class(filepath) as unpacker:
+        return "\n".join(unpacker.get_method_names())
+
+def extract_ico(file_path):
+    with Image.open(file_path) as img:
+        return f"ICO image: {img.size[0]}x{img.size[1]}, {len(img.info)} metadata entries"
+
+def extract_pdf(file_path):
+    with fitz.open(file_path) as doc:
+        return "\n".join(page.get_text() for page in doc)
+
+def detect_file_type(file_path):
+    kind = filetype.guess(file_path)
+    return kind.mime if kind else "unknown"
+
+def perform_ocr(file_path):
+    return pytesseract.image_to_string(Image.open(file_path))
+
+def get_all_files(directory):
+    text_file_paths = []
+    for root, _, files in os.walk(directory):
+        for file in files:
+            absolute_path = os.path.abspath(os.path.join(root, file))
+            text_file_paths.append(absolute_path)
+    return text_file_paths
+
+def extract_with_unstructured(file_path):
+    elements = partition(filename=file_path)
+    content = "\n".join([str(element) for element in elements])
+    return content
+
+def extract_data(file_path):
+    try:
+        file_type = detect_file_type(file_path)
+        if file_type == "application/java-archive":
+            return extract_jar(file_path)
+        elif file_type == "application/pdf":
+            return extract_pdf(file_path)
+        elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            return extract_docx(file_path)
+        elif file_type.startswith("image/"):
+            return perform_ocr(file_path)
+        else:
+            try:
+                return extract_with_unstructured(file_path)
+            except:
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                return content
+    except Exception as e:
+        return f"Error processing {file_path}: {str(e)}"
+
+directory = ''  # Replace with the path to your folder
+files = get_all_files(directory)
+
+results = {}
+working = []
+n_working = []
+
+for file_path in files:
+    content = extract_data(file_path)
+    results[file_path] = content
+
+    if content.startswith("Error"):
+        n_working.append(os.path.splitext(file_path)[1])
+    else:
+        working.append(os.path.splitext(file_path)[1])
+
+@njit
+def monte_carlo_pi(nsamples):
+    acc = 0
+    for i in range(nsamples):
+        x = random.random()
+        y = random.random()
+        if (x ** 2 + y ** 2) < 1.0:
+            acc += 1
+    return 4.0 * acc / nsamples
+
+df = dd.read_parquet("s3://my-data/")
+dtrain = xgb.dask.DaskDMatrix(df)
+
+model = xgb.dask.train(
+    dtrain,
+    {"tree_method": "hist", },
+    ...
+)
+
+df = dask.datasets.timeseries()  # Randomly generated data
+# df = dd.read_parquet(...)      # In practice, you would probably read data though
+
+train, test = df.random_split([0.80, 0.20])
+X_train, y_train, X_test, y_test = ...
+
+with LocalCluster() as cluster:
+    with cluster.get_client() as client:
+        d_train = xgb.dask.DaskDMatrix(client, X_train, y_train, enable_categorical=True)
+        model = xgb.dask.train(...d_train,)
+        predictions = xgb.dask.predict(client, model, X_test)
+
+df = dd.read_parquet("/path/to/my/data.parquet")
+
+model = load_model("/path/to/my/model")
+
+# pandas code
+# predictions = model.predict(df)
+# predictions.to_parquet("/path/to/results.parquet")
+
+# Dask code
+predictions = df.map_partitions(model.predict)
+predictions.to_parquet("/path/to/results.parquet")
+
+print("Non-working file extensions:")
+print(list(set(n_working)))
+print("Working file extensions:")
+print(list(set(working)))
