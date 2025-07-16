@@ -9,7 +9,7 @@ from Unsiloed.utils.openai import (
     extract_text_from_pdf,
     extract_text_from_docx,
     extract_text_from_pptx,
-    extract_text_from_html,
+    extract_text_from_html, 
     extract_text_from_markdown_file,
     extract_text_from_url,
 )
